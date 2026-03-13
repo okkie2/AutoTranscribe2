@@ -106,9 +106,14 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
   - Both commands log their actions to the console for transparency.
 
 - **Config-driven autostart flag**
-  - Introduce a config flag in `config.yaml`, e.g.:
-    - `autostart.enabled: true|false`
-  - When `autostart.enabled: true`, generate or manage a `launchd` plist that starts the unified start script on macOS login.
-  - Keep this optional and well-documented so users can opt in/out easily.
+  - Implemented:
+    - `config.yaml` now has:
+      - `autostart.enabled: true|false`
+      - `autostart.label: "com.autotranscribe2.startall"`
+    - `npm run autostart:install`:
+      - Builds the project.
+      - When `autostart.enabled: true`, writes a `~/Library/LaunchAgents/<label>.plist` that runs `npm run start:all` on login.
+      - Reloads the launch agent via `launchctl load -w`.
+  - Autostart can be toggled by editing `config.yaml` and re-running `npm run autostart:install`.
 
 

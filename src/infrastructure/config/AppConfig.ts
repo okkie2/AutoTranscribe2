@@ -45,11 +45,17 @@ export interface IngestConfig {
   recordingsRoot: string;
 }
 
+export interface AutostartConfig {
+  enabled: boolean;
+  label: string;
+}
+
 export interface AppConfig {
   watch: WatchConfiguration;
   backend: BackendConfig;
   logging: LoggingConfig;
   title: TitleConfig;
   ingest: IngestConfig;
+  autostart: AutostartConfig;
 }
 

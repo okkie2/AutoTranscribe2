@@ -38,3 +38,7 @@ ingest:
   jpr_source_root: "/Users/joostokkinga/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents"
   recordings_root: "/Users/joostokkinga/Documents/AutoTranscribe2/recordings"
 
+autostart:
+  enabled: false
+  label: "com.autotranscribe2.startall"
+

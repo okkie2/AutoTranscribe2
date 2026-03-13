@@ -1,7 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import type { AppConfig, BackendConfig, LoggingConfig, TitleConfig, IngestConfig } from "./AppConfig.js";
+import type {
+  AppConfig,
+  BackendConfig,
+  LoggingConfig,
+  TitleConfig,
+  IngestConfig,
+  AutostartConfig
+} from "./AppConfig.js";
 import type { WatchConfiguration } from "../../domain/WatchConfiguration.js";
 
 function toWatchConfiguration(raw: any): WatchConfiguration {
@@ -120,6 +127,12 @@ function toIngestConfig(raw: any): IngestConfig {
   };
 }
 
+function toAutostartConfig(raw: any): AutostartConfig {
+  const enabled = Boolean(raw?.enabled ?? false);
+  const label = String(raw?.label ?? "com.autotranscribe2.startall");
+  return { enabled, label };
+}
+
 export function loadConfig(configPath: string = "config.yaml"): AppConfig {
   const resolvedPath = path.resolve(configPath);
 
@@ -135,7 +148,8 @@ export function loadConfig(configPath: string = "config.yaml"): AppConfig {
   const logging = toLoggingConfig(raw.logging);
   const title = toTitleConfig(raw.title);
   const ingest = toIngestConfig(raw.ingest);
+  const autostart = toAutostartConfig(raw.autostart);
 
-  return { watch, backend, logging, title, ingest };
+  return { watch, backend, logging, title, ingest, autostart };
 }
 

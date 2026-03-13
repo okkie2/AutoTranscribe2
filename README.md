@@ -9,6 +9,51 @@ AutoTranscribe2 is a local-first transcription tool for Apple Silicon, focused o
 
 The core logic is CLI-agnostic so it can be reused in a future macOS app.
 
+### Quick start / stop
+
+From the project root:
+
+```bash
+cd /Users/<your-username>/Code/AutoTranscribe2
+
+# Start everything (Ollama check + JPR ingestion + watcher)
+npm run start:all
+
+# Stop everything again
+npm run stop:all
+```
+
+What this does:
+
+- **`start:all`**:
+  - Builds the project.
+  - If the title provider is set to `ollama`, checks whether the Ollama endpoint is reachable; if not, it attempts to run `brew services start ollama`.
+  - Starts:
+    - `ingest:jpr` – watches the Just Press Record iCloud folder and flattens new `.m4a` files into `~/Documents/AutoTranscribe2/recordings`.
+    - The main watcher (`autotranscribe watch`) – polls the recordings folder and produces titled `.md` transcripts in `~/Documents/AutoTranscribe2/transcripts`.
+  - Logs all actions to the console and writes the child PIDs to `.autotranscribe2-pids.json`.
+
+- **`stop:all`**:
+  - Reads `.autotranscribe2-pids.json`.
+  - Sends `SIGINT` to both the ingester and the watcher.
+  - Removes the PID file and logs what it did.
+
+Use `start:all` when you begin a session, and `stop:all` when you’re done.
+
+To have this stack start automatically when you log in on macOS:
+
+```bash
+# 1) Enable autostart in config.yaml
+# autostart:
+#   enabled: true
+#   label: "com.autotranscribe2.startall"
+
+cd /Users/<your-username>/Code/AutoTranscribe2
+npm run autostart:install
+```
+
+This writes a `~/Library/LaunchAgents/com.autotranscribe2.startall.plist` that runs `npm run start:all` at login (and logs to `~/Library/Logs/autotranscribe2.*.log`).
+
 ### Features (MVP)
 
 - **Two interaction modes**

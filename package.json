@@ -14,6 +14,7 @@
     "ingest:jpr": "npm run build && node dist/cli/ingestJustPressRecord.js",
     "start:all": "npm run build && node dist/cli/startAll.js",
     "stop:all": "node dist/cli/stopAll.js",
+    "autostart:install": "npm run build && node dist/cli/autostartInstall.js",
     "start": "node ./dist/cli/index.js",
     "watch": "tsc -w"
   },
