@@ -71,20 +71,23 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
       - The first line starts with `# `.
       - The filename matches `{timestamp}_{slug}.md` or `{timestamp}_Untitled.md`.
 
-- **Logging improvements**
-  - Add per-transcription log fields:
-    - Title provider used (`ollama`, `heuristic`, `none`).
-    - Whether fallback to `Untitled` was triggered.
-
 ### 6. Packaging & ergonomics
 
 - **CLI installation**
   - Document or add `npm link` usage so `autotranscribe` is available on `$PATH`.
+  - Provide a short “install” script or documented one-liner to:
+    - Build the project.
+    - Run `npm link` (or a local wrapper) so `autotranscribe` becomes globally available.
 
 - **Mac app considerations (later)**
   - Keep CLI and core logic cleanly separated so a future GUI wrapper:
     - Can call the same `TranscriptionService` and watcher orchestration.
     - Can surface titles and transcripts without shelling out.
+
+- **Easy uninstall / cleanup**
+  - Document how to “uninstall” AutoTranscribe2 cleanly:
+    - `npm unlink autotranscribe` (or equivalent if using a wrapper).
+    - Optional removal of venv and local data folders (with a clear warning and explicit user action).
 
 ### 7. Autostart & background behavior
 

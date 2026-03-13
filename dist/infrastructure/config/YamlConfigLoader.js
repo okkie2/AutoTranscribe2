@@ -87,6 +87,15 @@ function toTitleConfig(raw) {
     }
     return cfg;
 }
+function toIngestConfig(raw) {
+    if (!raw) {
+        throw new Error("Missing 'ingest' section in config.yaml");
+    }
+    return {
+        jprSourceRoot: String(raw.jpr_source_root),
+        recordingsRoot: String(raw.recordings_root)
+    };
+}
 export function loadConfig(configPath = "config.yaml") {
     const resolvedPath = path.resolve(configPath);
     if (!fs.existsSync(resolvedPath)) {
@@ -98,5 +107,6 @@ export function loadConfig(configPath = "config.yaml") {
     const backend = toBackendConfig(raw.backend);
     const logging = toLoggingConfig(raw.logging);
     const title = toTitleConfig(raw.title);
-    return { watch, backend, logging, title };
+    const ingest = toIngestConfig(raw.ingest);
+    return { watch, backend, logging, title, ingest };
 }

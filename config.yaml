@@ -34,3 +34,7 @@ title:
     temperature: 0.2
     timeout_ms: 20000
 
+ingest:
+  jpr_source_root: "/Users/joostokkinga/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents"
+  recordings_root: "/Users/joostokkinga/Documents/AutoTranscribe2/recordings"
+

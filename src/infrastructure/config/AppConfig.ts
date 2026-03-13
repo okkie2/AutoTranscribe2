@@ -40,10 +40,16 @@ export interface TitleConfig {
   };
 }
 
+export interface IngestConfig {
+  jprSourceRoot: string;
+  recordingsRoot: string;
+}
+
 export interface AppConfig {
   watch: WatchConfiguration;
   backend: BackendConfig;
   logging: LoggingConfig;
   title: TitleConfig;
+  ingest: IngestConfig;
 }
 

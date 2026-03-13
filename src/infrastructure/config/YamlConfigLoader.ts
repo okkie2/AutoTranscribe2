@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import type { AppConfig, BackendConfig, LoggingConfig, TitleConfig } from "./AppConfig.js";
+import type { AppConfig, BackendConfig, LoggingConfig, TitleConfig, IngestConfig } from "./AppConfig.js";
 import type { WatchConfiguration } from "../../domain/WatchConfiguration.js";
 
 function toWatchConfiguration(raw: any): WatchConfiguration {
@@ -109,6 +109,17 @@ function toTitleConfig(raw: any): TitleConfig {
   return cfg;
 }
 
+function toIngestConfig(raw: any): IngestConfig {
+  if (!raw) {
+    throw new Error("Missing 'ingest' section in config.yaml");
+  }
+
+  return {
+    jprSourceRoot: String(raw.jpr_source_root),
+    recordingsRoot: String(raw.recordings_root)
+  };
+}
+
 export function loadConfig(configPath: string = "config.yaml"): AppConfig {
   const resolvedPath = path.resolve(configPath);
 
@@ -123,7 +134,8 @@ export function loadConfig(configPath: string = "config.yaml"): AppConfig {
   const backend = toBackendConfig(raw.backend);
   const logging = toLoggingConfig(raw.logging);
   const title = toTitleConfig(raw.title);
+  const ingest = toIngestConfig(raw.ingest);
 
-  return { watch, backend, logging, title };
+  return { watch, backend, logging, title, ingest };
 }
 
