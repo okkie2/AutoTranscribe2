@@ -4,17 +4,15 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
 
 ### 1. Ingestion & file handling
 
-- **iCloud Just Press Record ingestion**
-  - Watch the Just Press Record iCloud folder (e.g. `~/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents`).
-  - Recursively scan dated subfolders and flatten recordings into the data root (e.g. `~/Documents/AutoTranscribe2/recordings`).
-  - Normalize filenames to the canonical timestamp format: `YYYY-MM-DD_HH-MM-SS.m4a`.
-  - Optionally delete/archieve originals after successful copy (configurable).
-
-- **Folder-to-flat transformation**
-  - Implement a small CLI (e.g. `autotranscribe ingest-jpr`) that:
-    - Takes a source directory (like the iCloud JPR root).
-    - Creates timestamped files in the recordings directory.
-    - Logs what it moved/renamed.
+- **iCloud Just Press Record ingestion (implemented)**
+  - Implemented as `npm run ingest:jpr`, which:
+    - Watches the Just Press Record iCloud folder (e.g. `~/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents`).
+    - Recursively scans dated subfolders and flattens recordings into the data root (e.g. `~/Documents/AutoTranscribe2/recordings`).
+    - Uses filenames of the form: `YYYY-MM-DD_HH-MM-SS_originalname.m4a`.
+    - Deletes the source file and removes empty date folders after a successful copy.
+  - Possible refinements:
+    - Make deletion/cleanup behavior configurable.
+    - Add a one-shot mode (ingest current backlog and exit) in addition to the long-running watcher.
 
 - **Duplicate and collision handling**
   - Decide how to handle name collisions (e.g. same timestamp twice):
