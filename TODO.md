@@ -99,4 +99,16 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - Remove or clearly separate the heuristic title suggester code.
     - Keep the interface (`TitleSuggester`) but simplify implementations to reduce maintenance.
 
+- **Unified start/stop helper**
+  - Implemented as:
+    - `npm run start:all` – builds the project, checks/starts Ollama (when configured), then starts `ingest:jpr` and the main watcher.
+    - `npm run stop:all` – sends `SIGINT` to both processes using a PID file and cleans up the PID file.
+  - Both commands log their actions to the console for transparency.
+
+- **Config-driven autostart flag**
+  - Introduce a config flag in `config.yaml`, e.g.:
+    - `autostart.enabled: true|false`
+  - When `autostart.enabled: true`, generate or manage a `launchd` plist that starts the unified start script on macOS login.
+  - Keep this optional and well-documented so users can opt in/out easily.
+
 
