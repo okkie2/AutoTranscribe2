@@ -199,6 +199,8 @@ npm run build
 
 ```bash
 node dist/cli/index.js transcribe /path/to/audio.m4a
+# or, if linked:
+# autotranscribe transcribe /path/to/audio.m4a
 ```
 
 This will:
@@ -214,6 +216,8 @@ This will:
 
 ```bash
 node dist/cli/index.js watch
+# or, if linked:
+# autotranscribe watch
 ```
 
 This will:
@@ -244,4 +248,5 @@ These names are used consistently in code, tests, and documentation.
 - Keep configuration in `config.yaml` (no separate dev/prod profiles yet).
 - Prefer small, focused commits (e.g. “Add watcher polling loop”, “Improve MLX backend error handling”).
 - Avoid committing large audio fixtures; they can live under `test/fixtures/` and be ignored via `.gitignore` if desired.
+- Use `npm test` for fast unit tests; use `npm run test:integration` for the CLI end-to-end test (ideally when the watcher stack is not running).
 

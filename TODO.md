@@ -36,13 +36,12 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
 
 ### 4. Testing & observability
 
-- **Integration tests**
-  - Add a small integration test (or script) that:
-    - Runs `transcribe` on a known fixture.
-    - Asserts that:
-      - A `.md` file is created.
-      - The first line starts with `# `.
-      - The filename matches `{timestamp}_{slug}.md` or `{timestamp}_Untitled.md`.
+- **CLI integration test (implemented)**
+  - Implemented as `src/__tests__/TranscribeIntegration.test.ts`:
+    - Runs the CLI `transcribe` command on the weather fixture.
+    - Ensures exactly one transcript is created.
+    - Verifies the first line starts with `# `.
+    - Intended to be run manually via `npm run test:integration` in a quiet environment (no watcher stack running), to avoid interference with the live queue.
 
 ### 5. Packaging & ergonomics
 
