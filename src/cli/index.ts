@@ -7,6 +7,7 @@ import { TranscriptionService } from "../application/TranscriptionService.js";
 import { TranscriptionJobQueue } from "../domain/TranscriptionJobQueue.js";
 import { FileSystemPoller } from "../infrastructure/watcher/FileSystemPoller.js";
 import { JobWorker } from "../application/JobWorker.js";
+import { createTitleSuggester } from "../infrastructure/title/TitleSuggesterFactory.js";
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -31,10 +32,13 @@ async function main() {
 
   const logger = new ConsoleAndFileLogger(config.logging);
   const backend = new MlxWhisperBackend(config.backend);
+  const titleSuggester = createTitleSuggester(config.title);
   const transcriptionService = new TranscriptionService(
     backend,
     logger,
-    config.watch.outputDirectory
+    config.watch.outputDirectory,
+    titleSuggester,
+    config.title
   );
   const queue = new TranscriptionJobQueue();
   const poller = new FileSystemPoller(
@@ -106,7 +110,7 @@ function printHelp() {
 
 Usage:
   autotranscribe watch
-      Start the long-running watcher (not yet implemented in this skeleton).
+      Start the long-running watcher that polls configured directories.
 
   autotranscribe transcribe <audio-file>
       Transcribe a single audio file and write a Markdown (.md) transcript.

@@ -22,3 +22,15 @@ logging:
   console: true
   verbose_errors: false
 
+title:
+  enabled: true
+  provider: "ollama" # "ollama" | "heuristic" | "none"
+  max_length: 80
+  max_words: 5
+  language_hint: null
+  ollama:
+    endpoint: "http://127.0.0.1:11434/api/generate"
+    model: "llama3.1:8b-instruct-q4_K_M"
+    temperature: 0.2
+    timeout_ms: 20000
+

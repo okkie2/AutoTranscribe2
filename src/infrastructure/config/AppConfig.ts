@@ -22,9 +22,28 @@ export interface LoggingConfig {
   verboseErrors: boolean;
 }
 
+export type TitleProvider = "heuristic" | "ollama" | "none";
+
+export interface TitleConfig {
+  enabled: boolean;
+  provider: TitleProvider;
+  maxLength: number;
+  maxWords: number;
+  languageHint: string | null;
+
+  // Ollama-only settings
+  ollama?: {
+    endpoint: string; // e.g. http://127.0.0.1:11434/api/generate
+    model: string; // e.g. llama3.1:8b-instruct-q4_K_M
+    temperature: number;
+    timeoutMs: number;
+  };
+}
+
 export interface AppConfig {
   watch: WatchConfiguration;
   backend: BackendConfig;
   logging: LoggingConfig;
+  title: TitleConfig;
 }
 

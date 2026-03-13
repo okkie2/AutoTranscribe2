@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import type { AppConfig, BackendConfig, LoggingConfig } from "./AppConfig.js";
+import type { AppConfig, BackendConfig, LoggingConfig, TitleConfig } from "./AppConfig.js";
 import type { WatchConfiguration } from "../../domain/WatchConfiguration.js";
 
 function toWatchConfiguration(raw: any): WatchConfiguration {
@@ -71,6 +71,44 @@ function toLoggingConfig(raw: any): LoggingConfig {
   };
 }
 
+function toTitleConfig(raw: any): TitleConfig {
+  // Title is optional; defaults keep behavior stable.
+  const enabled = Boolean(raw?.enabled ?? false);
+  const provider = String(raw?.provider ?? "heuristic") as TitleConfig["provider"];
+  const validProviders: TitleConfig["provider"][] = ["heuristic", "ollama", "none"];
+  if (!validProviders.includes(provider)) {
+    throw new Error(
+      `Invalid title.provider '${provider}' in config.yaml (expected one of ${validProviders.join(", ")})`
+    );
+  }
+
+  const languageHint =
+    raw?.language_hint === null || raw?.language_hint === undefined
+      ? null
+      : String(raw.language_hint);
+
+  const cfg: TitleConfig = {
+    enabled,
+    provider,
+    maxLength: Number(raw?.max_length ?? 80),
+    maxWords: Number(raw?.max_words ?? 5),
+    languageHint,
+    ollama: undefined
+  };
+
+  if (provider === "ollama") {
+    const o = raw?.ollama ?? {};
+    cfg.ollama = {
+      endpoint: String(o.endpoint ?? "http://127.0.0.1:11434/api/generate"),
+      model: String(o.model ?? "llama3.1:8b-instruct-q4_K_M"),
+      temperature: Number(o.temperature ?? 0.2),
+      timeoutMs: Number(o.timeout_ms ?? 20000)
+    };
+  }
+
+  return cfg;
+}
+
 export function loadConfig(configPath: string = "config.yaml"): AppConfig {
   const resolvedPath = path.resolve(configPath);
 
@@ -84,7 +122,8 @@ export function loadConfig(configPath: string = "config.yaml"): AppConfig {
   const watch = toWatchConfiguration(raw.watch);
   const backend = toBackendConfig(raw.backend);
   const logging = toLoggingConfig(raw.logging);
+  const title = toTitleConfig(raw.title);
 
-  return { watch, backend, logging };
+  return { watch, backend, logging, title };
 }
 

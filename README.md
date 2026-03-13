@@ -5,6 +5,7 @@ AutoTranscribe2 is a local-first transcription tool for Apple Silicon, focused o
 - A Node/TypeScript CLI (`autotranscribe`)
 - A Python backend that uses **MLX Whisper** for on-device speech recognition
 - A simple watcher that monitors directories and transcribes new audio files into Markdown
+ - An optional local title service (via **Ollama**) that generates short, descriptive titles for transcripts
 
 The core logic is CLI-agnostic so it can be reused in a future macOS app.
 
@@ -18,6 +19,8 @@ The core logic is CLI-agnostic so it can be reused in a future macOS app.
   - Can auto-detect language or accept a language hint (e.g. Dutch)
 - **Markdown output**
   - Writes `.md` transcripts alongside (or separate from) recordings
+  - Adds a `# Title` heading at the top of each transcript
+  - Uses `{timestamp}_{slug}.md` filenames (or `{timestamp}_Untitled.md` on fallback)
 - **Logging**
   - Human-readable, timestamped logs to console
   - Same logs appended to a logfile on disk
@@ -54,6 +57,7 @@ These can be changed in `config.yaml`.
 
 - **Node.js** (v18+ recommended)
 - **Python 3** (Apple Silicon, with MLX / `mlx-whisper` support)
+- **Ollama** (for local title generation, optional but recommended)
 - Git (if you want to contribute or sync via GitHub)
 
 ### Setup
@@ -110,7 +114,35 @@ logging:
 
 The application will create missing watch directories and log directories on first use.
 
-6. **Build the TypeScript code**
+6. **(Optional) Configure the local title service**
+
+Titles are configured via the `title` section in `config.yaml`. By default this repo enables a local Ollama-backed title suggester:
+
+```yaml
+title:
+  enabled: true
+  provider: "ollama" # "ollama" | "heuristic" | "none"
+  max_length: 80
+  max_words: 5
+  language_hint: null
+  ollama:
+    endpoint: "http://127.0.0.1:11434/api/generate"
+    model: "llama3.1:8b-instruct-q4_K_M"
+    temperature: 0.2
+    timeout_ms: 20000
+```
+
+To use this:
+
+```bash
+brew install ollama                  # if not already installed
+ollama pull llama3.1:8b-instruct-q4_K_M
+brew services start ollama           # run Ollama as a background service
+```
+
+If Ollama is unreachable or fails, the app falls back to `Untitled` titles and `{timestamp}_Untitled.md` filenames.
+
+7. **Build the TypeScript code**
 
 ```bash
 npm run build
@@ -127,7 +159,10 @@ node dist/cli/index.js transcribe /path/to/audio.m4a
 This will:
 
 - Run the Python MLX Whisper backend on the given file
-- Write a Markdown transcript (e.g. `audio.md`) under the configured `output_directory`
+- Generate a short title (using the configured title provider, e.g. Ollama)
+- Write a titled Markdown transcript under the configured `output_directory`, e.g.:
+  - `# Kennismaking met Sabine` (first line)
+  - Filename: `2025-12-03_14-03-14_kennismaking-met-sabine.md`
 - Log progress to console and to the logfile
 
 #### Watcher mode
@@ -141,7 +176,8 @@ This will:
 - Poll the configured `watch.directories` for new audio files
 - Enqueue a `TranscriptionJob` for each new file
 - Process jobs with the MLX Whisper backend
-- Write a `.md` transcript for each file under `output_directory`, optionally mirroring the source directory structure
+- For each file, generate a short title and write a titled `.md` transcript under `output_directory`,
+  optionally mirroring the source directory structure
 
 Stop the watcher with `Ctrl+C`.
 

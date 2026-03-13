@@ -3,6 +3,7 @@ import { TranscriptionJobState } from "../domain/TranscriptionJob.js";
 import { TranscriptionJobQueue } from "../domain/TranscriptionJobQueue.js";
 import type { Logger } from "../infrastructure/logging/Logger.js";
 import { TranscriptionService } from "./TranscriptionService.js";
+import path from "node:path";
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -51,19 +52,24 @@ export class JobWorker {
     });
 
     try {
-      await this.service.transcribeToPath(
+      const outputDir = path.dirname(job.targetTranscriptPath);
+      const originalBaseName = path.basename(job.audioFile.path, path.extname(job.audioFile.path));
+
+      const transcriptPath = await this.service.transcribeToDirectory(
         job.audioFile.path,
-        job.targetTranscriptPath,
+        outputDir,
+        originalBaseName,
         job.languageHint ?? null
       );
 
       job.state = TranscriptionJobState.Completed;
       job.updatedAt = new Date();
+      job.targetTranscriptPath = transcriptPath;
 
       this.logger.info("Transcription job completed", {
         jobId: job.id,
         audioFile: job.audioFile.path,
-        transcriptPath: job.targetTranscriptPath
+        transcriptPath
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

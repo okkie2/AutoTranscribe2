@@ -9,6 +9,8 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && node --test \"dist/__tests__/**/*.test.js\"",
+    "title:preview": "npm run build && node dist/cli/titlePreview.js",
     "start": "node ./dist/cli/index.js",
     "watch": "tsc -w"
   },
