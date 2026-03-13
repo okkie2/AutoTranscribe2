@@ -39,6 +39,6 @@ ingest:
   recordings_root: "/Users/joostokkinga/Documents/AutoTranscribe2/recordings"
 
 autostart:
-  enabled: false
+  enabled: true
   label: "com.autotranscribe2.startall"
 

@@ -50,6 +50,13 @@ export class FileSystemPoller {
             if (this.seenFiles.has(resolved)) {
                 continue;
             }
+            if (this.transcriptAlreadyExists(rootDir, resolved)) {
+                this.logger.info("Skipping audio file because transcript already exists", {
+                    audioFile: resolved
+                });
+                this.seenFiles.add(resolved);
+                continue;
+            }
             this.seenFiles.add(resolved);
             const audioFile = { path: resolved };
             const targetTranscriptPath = this.computeTargetTranscriptPath(rootDir, resolved);
@@ -92,6 +99,41 @@ export class FileSystemPoller {
         }
         const baseName = path.basename(audioFilePath, path.extname(audioFilePath));
         return path.join(outputRoot, `${baseName}.md`);
+    }
+    /**
+     * Check whether a transcript already exists for the given audio file.
+     * We look for any .md file in the expected transcript directory whose
+     * name starts with the audio timestamp (base name) plus an underscore,
+     * or exactly equals the timestamp.
+     */
+    transcriptAlreadyExists(rootDir, audioFilePath) {
+        try {
+            const outputRoot = path.resolve(this.config.outputDirectory);
+            const baseName = path.basename(audioFilePath, path.extname(audioFilePath));
+            let transcriptDir = outputRoot;
+            if (this.config.mirrorSourceStructure) {
+                const relative = path.relative(rootDir, audioFilePath);
+                const dirPart = path.dirname(relative);
+                transcriptDir = path.join(outputRoot, dirPart);
+            }
+            if (!fs.existsSync(transcriptDir) || !fs.statSync(transcriptDir).isDirectory()) {
+                return false;
+            }
+            const entries = fs.readdirSync(transcriptDir, { withFileTypes: true });
+            for (const entry of entries) {
+                if (!entry.isFile())
+                    continue;
+                if (!entry.name.toLowerCase().endsWith(".md"))
+                    continue;
+                if (entry.name === `${baseName}.md` || entry.name.startsWith(`${baseName}_`)) {
+                    return true;
+                }
+            }
+        }
+        catch {
+            // On any error, fall back to "not existing" so we don't miss work.
+        }
+        return false;
     }
     generateJobId() {
         return `${Date.now()}-${Math.random().toString(16).slice(2)}`;

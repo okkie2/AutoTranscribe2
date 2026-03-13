@@ -96,6 +96,11 @@ function toIngestConfig(raw) {
         recordingsRoot: String(raw.recordings_root)
     };
 }
+function toAutostartConfig(raw) {
+    const enabled = Boolean(raw?.enabled ?? false);
+    const label = String(raw?.label ?? "com.autotranscribe2.startall");
+    return { enabled, label };
+}
 export function loadConfig(configPath = "config.yaml") {
     const resolvedPath = path.resolve(configPath);
     if (!fs.existsSync(resolvedPath)) {
@@ -108,5 +113,6 @@ export function loadConfig(configPath = "config.yaml") {
     const logging = toLoggingConfig(raw.logging);
     const title = toTitleConfig(raw.title);
     const ingest = toIngestConfig(raw.ingest);
-    return { watch, backend, logging, title, ingest };
+    const autostart = toAutostartConfig(raw.autostart);
+    return { watch, backend, logging, title, ingest, autostart };
 }
