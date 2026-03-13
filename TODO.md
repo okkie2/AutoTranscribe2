@@ -12,28 +12,13 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - Deletes the source file and removes empty date folders after a successful copy.
   - Possible refinements:
     - Make deletion/cleanup behavior configurable.
-    - Add a one-shot mode (ingest current backlog and exit) in addition to the long-running watcher.
 
 - **Duplicate and collision handling**
   - Decide how to handle name collisions (e.g. same timestamp twice):
     - Suffix (`_1`, `_2`), or
     - Skip with a warning.
 
-### 2. Transcript formatting & metadata
-
-- **Metadata header**
-  - Add a small header block above the title or just below it, e.g.:
-    - Recording timestamp
-    - Original file name
-    - Duration (if easily available)
-    - Language (from MLX / title service)
-
-- **Section structure**
-  - Optionally add basic sections to the `.md` output:
-    - `## Transcript`
-    - (Later) `## Summary` or `## Action items` if you decide to add a separate summariser.
-
-### 3. Title service & quality
+### 2. Title service & quality
 
 - **Guardrail tuning**
   - Collect a handful of “good” and “bad” titles from real meetings.
@@ -47,19 +32,9 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - A small Dutch stopword + filler list (already present).
     - Prefer phrases containing rarer, content-heavy words.
 
-### 4. Watcher & robustness
+### 3. Watcher & robustness
 
-- **Ollama health check**
-  - On startup, or before first title request:
-    - Ping the configured Ollama endpoint.
-    - If unreachable:
-      - Log a clear warning: titles disabled, falling back to `Untitled`.
-
-- **Backoff & retry**
-  - When the title provider or backend fails intermittently:
-    - Add simple retry with backoff (for titles only).
-
-### 5. Testing & observability
+### 4. Testing & observability
 
 - **Integration tests**
   - Add a small integration test (or script) that:
@@ -69,7 +44,7 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
       - The first line starts with `# `.
       - The filename matches `{timestamp}_{slug}.md` or `{timestamp}_Untitled.md`.
 
-### 6. Packaging & ergonomics
+### 5. Packaging & ergonomics
 
 - **CLI installation**
   - Document or add `npm link` usage so `autotranscribe` is available on `$PATH`.
@@ -87,7 +62,7 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - `npm unlink autotranscribe` (or equivalent if using a wrapper).
     - Optional removal of venv and local data folders (with a clear warning and explicit user action).
 
-### 7. Autostart & background behavior
+### 6. Autostart & background behavior
 
 - **Autotranscribe watcher autostart (macOS)**
   - Add a helper or documented setup to have `autotranscribe watch` start automatically on macOS login, for example:
