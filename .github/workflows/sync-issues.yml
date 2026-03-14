@@ -1,0 +1,24 @@
+# Sync docs/issues/*.md to GitHub issues when TODO or issue drafts change.
+name: Sync issues from docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "TODO.md"
+      - "docs/issues/**"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync issue drafts to GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/sync-issues-to-github.mjs .

@@ -2,8 +2,6 @@
 
 AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It converts audio recordings into clean, readable Markdown transcripts using on-device Whisper. Drop audio files into a folder and they become structured notes with timestamps and titles. Everything runs locally — no cloud, no uploads.
 
----
-
 ## What this does for you
 
 1. Record audio (e.g. Just Press Record on your phone).
@@ -12,9 +10,11 @@ AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It 
 4. Whisper transcribes it locally.
 5. A titled Markdown transcript appears in your transcripts folder.
 
----
+You get a structured note you can read, search, and store in your notes system.
 
 ## Example output
+
+Each transcript looks like this:
 
 ```markdown
 # Things to do tomorrow
@@ -38,8 +38,6 @@ Original transcript
 okay things to do tomorrow first buy milk eggs and coffee then...
 ```
 
----
-
 ## Why people use this
 
 - Capture ideas while walking or commuting
@@ -48,8 +46,6 @@ okay things to do tomorrow first buy milk eggs and coffee then...
 
 Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 
----
-
 ## Use cases
 
 - **Voice memos** – reminders, planning, capturing ideas
@@ -57,8 +53,6 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 - **Research interviews** – searchable transcripts, easy quoting
 - **Writing** – blog posts, outlines, book notes
 - **Knowledge archive** – searchable conversations that fit into your note system
-
----
 
 ## Key features
 
@@ -69,41 +63,10 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 
 ---
 
-## Quick start
+**Next steps**
 
-```bash
-git clone https://github.com/okkie2/AutoTranscribe2.git
-cd AutoTranscribe2
-npm install
-npm run start:all
-```
-
-Use `npm run stop:all` to stop. See [docs/usage.md](docs/usage.md) for commands and autostart.
-
----
-
-## Prerequisites
-
-| Requirement        | Notes |
-|--------------------|--------|
-| **Apple Silicon Mac** | Required for MLX Whisper. |
-| **Node.js**        | v18+ recommended. |
-| **Python 3**       | Venv with `pip install mlx-whisper`. |
-| **Ollama**         | Optional; for title generation. |
-
----
-
-## Documentation
-
-Wiki-ready docs under `docs/` (can be synced to GitHub Wiki):
-
-| Page | Description |
-|------|-------------|
-| [docs/Home.md](docs/Home.md) | Overview, what it does, example output, use cases, key features |
-| [docs/Installation.md](docs/Installation.md) | Prerequisites, quick start, install steps |
-| [docs/Configuration.md](docs/Configuration.md) | `config.yaml`, data dirs, title/Ollama, ingest, autostart |
-| [docs/Usage.md](docs/Usage.md) | Commands, workflow, autostart, what gets written where |
-| [docs/Architecture.md](docs/Architecture.md) | Pipeline diagram, domain/application/infrastructure/CLI, project structure |
-| [docs/Development.md](docs/Development.md) | Testing, contributing, TODO/roadmap, glossary |
-
-Issue drafts: [docs/issues/](docs/issues/). Roadmap: [TODO.md](TODO.md).
+- [[Installation]] – prerequisites, quick start, install steps
+- [[Configuration]] – `config.yaml` and data directories
+- [[Usage]] – commands, workflow, autostart
+- [[Architecture]] – pipeline and project structure
+- [[Development]] – testing, contributing, glossary

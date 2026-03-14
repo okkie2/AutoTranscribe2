@@ -1,102 +1,67 @@
 ## TODO / Next Steps
 
-This is a living list of next steps and ideas for AutoTranscribe2. Items are grouped roughly by area.
+Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first, then usability, then workflow.
 
-### 1. Ingestion & file handling
+---
 
-- **iCloud Just Press Record ingestion (implemented)**
-  - Implemented as `npm run ingest:jpr`, which:
-    - Watches the Just Press Record iCloud folder (e.g. `~/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents`).
-    - Recursively scans dated subfolders and flattens recordings into the data root (e.g. `~/Documents/AutoTranscribe2/recordings`).
-    - Uses filenames of the form: `YYYY-MM-DD_HH-MM-SS_originalname.m4a`.
-    - Deletes the source file and removes empty date folders after a successful copy.
-  - Possible refinements:
-    - Make deletion/cleanup behavior configurable.
+## Already implemented
+
+- **iCloud Just Press Record ingestion** – `npm run ingest:jpr` watches the JPR iCloud folder, flattens dated subfolders into the recordings directory, normalises filenames (`YYYY-MM-DD_HH-MM-SS_...`), optional cleanup after copy.
+- **Readable transcript format** – Paragraphs with timestamps and labels; original transcript at bottom. Preview script: `python py-backend/timestamp_preview.py <file> --language nl`.
+- **CLI integration test** – `npm run test:integration` runs the transcribe command on a fixture and checks output.
+- **Unified start/stop** – `npm run start:all` (build, Ollama check, ingest:jpr + watcher); `npm run stop:all` (SIGINT via PID file).
+- **Config-driven autostart** – `autostart.enabled` / `autostart.label` in `config.yaml`; `npm run autostart:install` writes launchd plist for login.
+
+---
+
+### Priority 1 — Reliability
+
+- **Automated testing on each commit**
+  - Add automated test runs on each push / pull request.
+  - Start with:
+    - `npm run build`
+    - `npm test`
+    - `npm run test:integration`
+  - Add a GitHub Actions workflow so changes are checked automatically.
+  - Where the real MLX backend is hard to run in CI, prefer a mocked backend for stable tests.
 
 - **Duplicate and collision handling**
-  - Decide how to handle name collisions (e.g. same timestamp twice):
-    - Suffix (`_1`, `_2`), or
-    - Skip with a warning.
+  - Ensure filename collisions cannot overwrite recordings or transcripts.
+  - Likely solution: suffix numbering (`_1`, `_2`, ...).
 
-### 2. Transcript formatting (implemented)
+- **Watcher robustness**
+  - Handle failed jobs cleanly.
+  - Avoid reprocessing the same files.
+  - Make watcher behaviour resilient if the backend crashes or a file is incomplete.
 
-- **Readable transcript format**
-  - Implemented everywhere (Python backend + TranscriptionService):
-    - Transcripts are written as **paragraphs** (alineas) instead of a wall of text.
-    - Each paragraph has a **timestamp** and a short **label** (first few words) at the top, e.g. `**[00:00] Opening of the meeting**`.
-    - The **original, unformatted transcript** is appended at the bottom under `---` / "Original transcript", so nothing is lost.
-  - Preview script: `python py-backend/timestamp_preview.py <audio.m4a> --language nl` (output to file or stdout).
+---
 
-### 3. Title service & quality
+### Priority 2 — Usability
 
-- **Guardrail tuning**
-  - Collect a handful of “good” and “bad” titles from real meetings.
-  - Use them to:
-    - Refine the Ollama prompt.
-    - Extend the generic-title blacklist.
-    - Adjust max length and word limits.
-
-- **Heuristic fallback refinement**
-  - When provider is `"heuristic"`, improve the simple keyword/phrase heuristic using:
-    - A small Dutch stopword + filler list (already present).
-    - Prefer phrases containing rarer, content-heavy words.
-
-### 4. Watcher & robustness
-
-### 5. Testing & observability
-
-- **CLI integration test (implemented)**
-  - Implemented as `src/__tests__/TranscribeIntegration.test.ts`:
-    - Runs the CLI `transcribe` command on the weather fixture.
-    - Ensures exactly one transcript is created.
-    - Verifies the first line starts with `# `.
-    - Intended to be run manually via `npm run test:integration` in a quiet environment (no watcher stack running), to avoid interference with the live queue.
-
-### 6. Packaging & ergonomics
+- **Background status visibility**
+  - Provide a lightweight visual clue that AutoTranscribe2 is running in the background.
+  - Indicate whether the app is:
+    - idle
+    - processing
+    - error / attention needed
+  - First direction: explore a small macOS menu bar or status item.
 
 - **CLI installation**
-  - Document or add `npm link` usage so `autotranscribe` is available on `$PATH`.
-  - Provide a short “install” script or documented one-liner to:
-    - Build the project.
-    - Run `npm link` (or a local wrapper) so `autotranscribe` becomes globally available.
+  - Provide a simple way to make `autotranscribe` available on `$PATH`.
+  - Document `npm link` or provide a one-step install script.
 
-- **Mac app considerations (later)**
-  - Keep CLI and core logic cleanly separated so a future GUI wrapper:
-    - Can call the same `TranscriptionService` and watcher orchestration.
-    - Can surface titles and transcripts without shelling out.
+---
 
-- **Easy uninstall / cleanup**
-  - Document how to “uninstall” AutoTranscribe2 cleanly:
-    - `npm unlink autotranscribe` (or equivalent if using a wrapper).
-    - Optional removal of venv and local data folders (with a clear warning and explicit user action).
+### Priority 3 — Workflow improvements
 
-### 7. Autostart & background behavior
+- **Ingestion mode**
+  - Add configuration so the user can choose how files are handled after ingestion:
+    - `move` – current behaviour and default
+    - `copy` – keep the original file in the source folder
 
-- **Autotranscribe watcher autostart (macOS)**
-  - Add a helper or documented setup to have `autotranscribe watch` start automatically on macOS login, for example:
-    - A small `launchd` plist that runs `node dist/cli/index.js watch` in the project directory.
-    - Or a wrapper script that can be referenced from a launch agent.
+---
 
-- **Remove unused heuristics (when Ollama is stable)**
-  - Once the Ollama-based title service is stable and preferred:
-    - Remove or clearly separate the heuristic title suggester code.
-    - Keep the interface (`TitleSuggester`) but simplify implementations to reduce maintenance.
+### Future ideas
 
-- **Unified start/stop helper**
-  - Implemented as:
-    - `npm run start:all` – builds the project, checks/starts Ollama (when configured), then starts `ingest:jpr` and the main watcher.
-    - `npm run stop:all` – sends `SIGINT` to both processes using a PID file and cleans up the PID file.
-  - Both commands log their actions to the console for transparency.
-
-- **Config-driven autostart flag**
-  - Implemented:
-    - `config.yaml` now has:
-      - `autostart.enabled: true|false`
-      - `autostart.label: "com.autotranscribe2.startall"`
-    - `npm run autostart:install`:
-      - Builds the project.
-      - When `autostart.enabled: true`, writes a `~/Library/LaunchAgents/<label>.plist` that runs `npm run start:all` on login.
-      - Reloads the launch agent via `launchctl load -w`.
-  - Autostart can be toggled by editing `config.yaml` and re-running `npm run autostart:install`.
-
-
+- **macOS GUI wrapper**
+  - Explore a small GUI or menu bar app that reuses the same core services.
