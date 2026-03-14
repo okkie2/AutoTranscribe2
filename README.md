@@ -81,7 +81,10 @@ npm install
 npm run start:all
 ```
 
-Use `npm run stop:all` to stop. Run `npm run status` for a live-updating dashboard (refreshes every 500 ms; press Ctrl+C to exit). See [docs/usage.md](docs/usage.md) for commands and autostart.
+- **Stop:** `npm run stop:all`
+- **Status monitor:** In another terminal, run `npm run status` for a live-updating dashboard (refreshes every 500 ms; shows state, queue, current file). Press Ctrl+C to exit.
+
+See [docs/usage.md](docs/usage.md) for commands and autostart.
 
 ---
 
