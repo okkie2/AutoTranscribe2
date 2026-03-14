@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Pre-push hook: run build and unit tests. Blocks push on failure.
+# Install: npm run install-hooks
+set -e
+
+echo "Pre-push: running build and tests..."
+npm run build
+npm test
+echo "Pre-push: build and tests passed."

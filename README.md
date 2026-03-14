@@ -1,5 +1,7 @@
 # AutoTranscribe2
 
+[![CI](https://github.com/okkie2/AutoTranscribe2/actions/workflows/ci.yml/badge.svg)](https://github.com/okkie2/AutoTranscribe2/actions/workflows/ci.yml)
+
 AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It converts audio recordings into clean, readable Markdown transcripts using on-device Whisper. Drop audio files into a folder and they become structured notes with timestamps and titles. Everything runs locally — no cloud, no uploads.
 
 ---
@@ -107,3 +109,13 @@ Wiki-ready docs under `docs/` (can be synced to GitHub Wiki):
 | [docs/Development.md](docs/Development.md) | Testing, contributing, TODO/roadmap, glossary |
 
 Issue drafts: [docs/issues/](docs/issues/). Roadmap: [TODO.md](TODO.md).
+
+**GitHub Wiki:** To fill the wiki, create the first page on the Wiki tab (one-time), then run `npm run push-wiki`.
+
+---
+
+## Development and testing
+
+- **Unit tests:** `npm test` (runs build + unit tests). Used by the pre-push hook and CI.
+- **Integration test:** `npm run test:integration` — run locally when the watcher is not running; not run in CI (requires Apple Silicon / MLX).
+- **Pre-push hook:** After cloning, run `npm run install-hooks` once. Before each push, `npm run build` and `npm test` run automatically; if they fail, the push is blocked. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full commit/push workflow and how to fix or bypass when tests fail.
