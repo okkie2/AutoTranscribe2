@@ -47,7 +47,23 @@ export class TranscriptionService {
         if (!fs.existsSync(resolvedOutputDir)) {
             fs.mkdirSync(resolvedOutputDir, { recursive: true });
         }
-        const rawText = transcript.content;
+        const backendContent = transcript.content;
+        // Allow backends to return either plain text or a JSON object with both
+        // the raw text and a formatted Markdown body with timestamps and paragraphs.
+        let rawText = backendContent;
+        let formattedBody = backendContent;
+        try {
+            const parsed = JSON.parse(backendContent);
+            if (parsed && typeof parsed.text === "string" && parsed.text.trim().length > 0) {
+                rawText = parsed.text;
+            }
+            if (parsed && typeof parsed.formatted_markdown === "string" && parsed.formatted_markdown.trim().length > 0) {
+                formattedBody = parsed.formatted_markdown;
+            }
+        }
+        catch {
+            // Not JSON; treat content as plain text.
+        }
         let suggestedTitle = "";
         if (this.titleConfig.enabled && this.titleConfig.provider !== "none") {
             try {
@@ -64,7 +80,7 @@ export class TranscriptionService {
                 suggestedTitle = "";
             }
         }
-        const { finalContent, finalFileName, title } = formatTranscriptWithTitle(rawText, suggestedTitle, originalBaseName);
+        const { finalContent, finalFileName, title } = formatTranscriptWithTitle(formattedBody, suggestedTitle, originalBaseName);
         const resolvedTarget = path.join(resolvedOutputDir, finalFileName);
         fs.writeFileSync(resolvedTarget, finalContent, { encoding: "utf8" });
         this.logger.info("Finished transcription job", {

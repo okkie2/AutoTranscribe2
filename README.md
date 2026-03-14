@@ -66,6 +66,8 @@ This writes a `~/Library/LaunchAgents/com.autotranscribe2.startall.plist` that r
   - Writes `.md` transcripts alongside (or separate from) recordings
   - Adds a `# Title` heading at the top of each transcript
   - Uses `{timestamp}_{slug}.md` filenames (or `{timestamp}_Untitled.md` on fallback)
+  - **Readable format**: body is split into paragraphs (alineas), each with a timestamp and short label (e.g. `**[00:00] Opening of the meeting**`), followed by the paragraph text
+  - The **original, unformatted transcript** is appended at the bottom under `---` / "Original transcript", so nothing is lost
 - **Logging**
   - Human-readable, timestamped logs to console
   - Same logs appended to a logfile on disk
@@ -209,8 +211,11 @@ This will:
 - Generate a short title (using the configured title provider, e.g. Ollama)
 - Write a titled Markdown transcript under the configured `output_directory`, e.g.:
   - `# Kennismaking met Sabine` (first line)
+  - Body: timestamped paragraphs with short labels, then `---` and the original unformatted transcript at the bottom
   - Filename: `2025-12-03_14-03-14_kennismaking-met-sabine.md`
 - Log progress to console and to the logfile
+
+To preview the same formatted output for a single file without going through the Node pipeline (e.g. to experiment with paragraph length), from the project root with the venv activated: `python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > preview.md`
 
 #### Watcher mode
 

@@ -18,7 +18,16 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - Suffix (`_1`, `_2`), or
     - Skip with a warning.
 
-### 2. Title service & quality
+### 2. Transcript formatting (implemented)
+
+- **Readable transcript format**
+  - Implemented everywhere (Python backend + TranscriptionService):
+    - Transcripts are written as **paragraphs** (alineas) instead of a wall of text.
+    - Each paragraph has a **timestamp** and a short **label** (first few words) at the top, e.g. `**[00:00] Opening of the meeting**`.
+    - The **original, unformatted transcript** is appended at the bottom under `---` / "Original transcript", so nothing is lost.
+  - Preview script: `python py-backend/timestamp_preview.py <audio.m4a> --language nl` (output to file or stdout).
+
+### 3. Title service & quality
 
 - **Guardrail tuning**
   - Collect a handful of “good” and “bad” titles from real meetings.
@@ -32,9 +41,9 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - A small Dutch stopword + filler list (already present).
     - Prefer phrases containing rarer, content-heavy words.
 
-### 3. Watcher & robustness
+### 4. Watcher & robustness
 
-### 4. Testing & observability
+### 5. Testing & observability
 
 - **CLI integration test (implemented)**
   - Implemented as `src/__tests__/TranscribeIntegration.test.ts`:
@@ -43,7 +52,7 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - Verifies the first line starts with `# `.
     - Intended to be run manually via `npm run test:integration` in a quiet environment (no watcher stack running), to avoid interference with the live queue.
 
-### 5. Packaging & ergonomics
+### 6. Packaging & ergonomics
 
 - **CLI installation**
   - Document or add `npm link` usage so `autotranscribe` is available on `$PATH`.
@@ -61,7 +70,7 @@ This is a living list of next steps and ideas for AutoTranscribe2. Items are gro
     - `npm unlink autotranscribe` (or equivalent if using a wrapper).
     - Optional removal of venv and local data folders (with a clear warning and explicit user action).
 
-### 6. Autostart & background behavior
+### 7. Autostart & background behavior
 
 - **Autotranscribe watcher autostart (macOS)**
   - Add a helper or documented setup to have `autotranscribe watch` start automatically on macOS login, for example:
