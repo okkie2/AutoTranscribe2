@@ -65,3 +65,41 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 
 - **macOS GUI wrapper**
   - Explore a small GUI or menu bar app that reuses the same core services.
+
+---
+
+### Transcript summary block
+
+Add an automatically generated summary above the prettified transcript in the Markdown output. Markdown remains canonical; summary may include main topics, decisions, action items, open questions.
+
+- Design summary block format (Markdown structure, headings).
+- Add summary generation step after transcription.
+- Prepend summary to Markdown transcript in the writer.
+- Add tests for summary insertion.
+- Document summary behaviour in README.
+
+---
+
+### HTML transcript viewer with clickable timestamps
+
+Generate an HTML transcript view with an audio player and clickable timestamps that jump to the correct moment. Markdown stays source of truth; HTML is an additional output.
+
+- Extend transcript model to include timestamp seconds where needed.
+- Create HTML transcript renderer (template or generator).
+- Embed audio player in HTML output.
+- Implement timestamp click → audio seek.
+- Resolve audio path from config.
+- Optionally generate transcript index page.
+- Document HTML output.
+
+---
+
+### Evaluate improved transcription engines
+
+Experiment with newer or higher-quality STT engines; compare accuracy, speed, resource use; keep pipeline modular and config-driven.
+
+- Abstract or confirm transcription engine interface for pluggable backends.
+- Add support for at least one alternative engine (e.g. Faster-Whisper, whisper.cpp).
+- Benchmark transcription quality and speed.
+- Document results.
+- Allow engine selection via config.yaml.

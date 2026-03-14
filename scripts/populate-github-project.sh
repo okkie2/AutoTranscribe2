@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Create a GitHub Project and add issues #1–#7, OR add those issues to an existing project.
+# Create a GitHub Project and add issues #1–#10, OR add those issues to an existing project.
 # Requires: gh auth with project scope. Run once:  gh auth refresh -s project
+# New issues (#8–#10) are created by the sync-issues workflow when docs/issues/*.md are pushed.
 #
 # Usage:
 #   npm run populate-project              # create new project, link to repo, add all issues
-#   npm run populate-project -- 2         # add issues #1–#7 to existing project number 2
+#   npm run populate-project -- 2         # add issues #1–#10 to existing project number 2
 #
 # If your project is empty: get its number from the URL (e.g. .../projects/2 → use 2), then:
 #   npm run populate-project -- 2
@@ -13,7 +14,7 @@ set -e
 OWNER="okkie2"
 REPO="AutoTranscribe2"
 PROJECT_TITLE="AutoTranscribe2 Roadmap"
-ISSUES="1 2 3 4 5 6 7"
+ISSUES="1 2 3 4 5 6 7 8 9 10"
 
 EXISTING_PROJECT="$1"
 
