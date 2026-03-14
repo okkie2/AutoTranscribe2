@@ -8,10 +8,11 @@ function delay(ms) {
  * and processes them using the TranscriptionService.
  */
 export class JobWorker {
-    constructor(queue, service, logger) {
+    constructor(queue, service, logger, statusUpdater) {
         this.queue = queue;
         this.service = service;
         this.logger = logger;
+        this.statusUpdater = statusUpdater;
     }
     /**
      * Start processing jobs until the given AbortSignal is aborted.
@@ -24,6 +25,12 @@ export class JobWorker {
                 await delay(500);
                 continue;
             }
+            this.statusUpdater?.({
+                state: "processing",
+                currentFile: path.basename(job.audioFile.path),
+                queueLength: this.queue.getLength(),
+                lastError: null
+            });
             await this.processJob(job);
         }
         this.logger.info("JobWorker stopped");
@@ -49,6 +56,12 @@ export class JobWorker {
                 audioFile: job.audioFile.path,
                 transcriptPath
             });
+            this.statusUpdater?.({
+                state: "idle",
+                currentFile: null,
+                queueLength: this.queue.getLength(),
+                lastError: null
+            });
         }
         catch (err) {
             const message = err instanceof Error ? err.message : String(err);
@@ -59,6 +72,12 @@ export class JobWorker {
                 jobId: job.id,
                 audioFile: job.audioFile.path,
                 error: message
+            });
+            this.statusUpdater?.({
+                state: "error",
+                currentFile: null,
+                queueLength: this.queue.getLength(),
+                lastError: message
             });
         }
     }

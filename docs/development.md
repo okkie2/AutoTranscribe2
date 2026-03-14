@@ -30,6 +30,7 @@ Integration testing for the automatic (watch) flow is manual: run the watcher, a
 ## Testing commands
 
 - **Unit tests:** `npm test` – runs build and the TranscriptTitleFormatter (and other) unit tests.
+- **Live status:** When the watcher is running, `npm run status` shows a live-updating terminal dashboard (refreshes every 500 ms; press Ctrl+C to exit). Data is read from `runtime/status.json`.
 
 ## TODO / roadmap
 

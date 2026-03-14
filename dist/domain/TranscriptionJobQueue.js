@@ -22,6 +22,12 @@ export class TranscriptionJobQueue {
         return this.queue.shift();
     }
     /**
+     * Returns the number of jobs waiting in the queue.
+     */
+    getLength() {
+        return this.queue.length;
+    }
+    /**
      * Returns true when there are no jobs waiting to be processed.
      */
     isEmpty() {

@@ -27,11 +27,12 @@ logging:
 
 Default paths:
 
-| Purpose      | Default path |
-|-------------|--------------|
-| Recordings  | `~/Documents/AutoTranscribe2/recordings` |
-| Transcripts | `~/Documents/AutoTranscribe2/transcripts` |
-| Logs        | `~/Documents/AutoTranscribe2/logs` |
+| Purpose       | Default path |
+|---------------|---------------|
+| Recordings    | `~/Documents/AutoTranscribe2/recordings` |
+| Transcripts   | `~/Documents/AutoTranscribe2/transcripts` |
+| Logs          | `~/Documents/AutoTranscribe2/logs` |
+| Runtime status | `runtime/status.json` (relative to project root; written when watcher runs) |
 
 ## Title / Ollama configuration
 

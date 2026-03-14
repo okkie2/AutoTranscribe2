@@ -19,11 +19,11 @@ cd "$WIKI_DIR"
 
 echo "Copying wiki pages from docs/..."
 cp "$REPO_ROOT/docs/Home.md" Home.md
-cp "$REPO_ROOT/docs/Installation.md" Installation.md
-cp "$REPO_ROOT/docs/Configuration.md" Configuration.md
-cp "$REPO_ROOT/docs/Usage.md" Usage.md
-cp "$REPO_ROOT/docs/Architecture.md" Architecture.md
-cp "$REPO_ROOT/docs/Development.md" Development.md
+cp "$REPO_ROOT/docs/installation.md" Installation.md
+cp "$REPO_ROOT/docs/configuration.md" Configuration.md
+cp "$REPO_ROOT/docs/usage.md" Usage.md
+cp "$REPO_ROOT/docs/architecture.md" Architecture.md
+cp "$REPO_ROOT/docs/development.md" Development.md
 
 git add *.md
 if git diff --staged --quiet; then

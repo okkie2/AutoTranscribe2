@@ -34,6 +34,26 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 - **Recordings:** Input audio lives in the directory listed in `watch.directories` (default `~/Documents/AutoTranscribe2/recordings`). The JPR ingester writes normalised filenames there.
 - **Transcripts:** Each transcript is written to `watch.output_directory` (default `~/Documents/AutoTranscribe2/transcripts`) as `{timestamp}_{slug}.md` or `{timestamp}_Untitled.md`.
 - **Logs:** Console and file logs go to the path in `logging.log_file` (default `~/Documents/AutoTranscribe2/logs/autotranscribe.log`).
+- **Runtime status:** When the watcher is running, it writes `runtime/status.json` (next to `config.yaml`) with current state (`idle`, `processing`, `error`), queue length, current file, and last error. The status command reads this file.
+
+## Live status dashboard
+
+When the watcher is running (e.g. via `npm run start:all` or `autotranscribe watch`), you can see what it’s doing without reading logs:
+
+```bash
+npm run status
+```
+
+This starts a **live-updating terminal dashboard** that:
+
+- Refreshes **every 500 ms** in place (no scrolling).
+- Shows: **State** (idle / processing / error), **Queue length**, **Current file** (if any), **Last update** time, **Last error** (if any).
+- Uses colour: green (idle), yellow (processing), red (error), dim (stale or no data).
+- Reads from the same `runtime/status.json` file the watcher updates.
+
+Press **Ctrl+C** to exit the dashboard cleanly.
+
+If the status file is missing or invalid (e.g. watcher not running), the dashboard shows fallbacks (`-`) and the path it looked for. If data is older than about 30 seconds, the state is shown as *stale* (dim).
 
 ## Autostart on macOS
 

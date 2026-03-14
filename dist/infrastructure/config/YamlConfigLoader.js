@@ -114,5 +114,6 @@ export function loadConfig(configPath = "config.yaml") {
     const title = toTitleConfig(raw.title);
     const ingest = toIngestConfig(raw.ingest);
     const autostart = toAutostartConfig(raw.autostart);
-    return { watch, backend, logging, title, ingest, autostart };
+    const runtimeStatusPath = path.join(path.dirname(resolvedPath), "runtime", "status.json");
+    return { watch, backend, logging, title, ingest, autostart, runtimeStatusPath };
 }

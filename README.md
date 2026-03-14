@@ -65,6 +65,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 ## Key features
 
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
+- **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with state (idle/processing/error), queue length, current file, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
 - **MLX Whisper** on Apple Silicon; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
 - **JPR ingestion** and **unified start/stop** (`npm run start:all` / `stop:all`)
@@ -80,7 +81,7 @@ npm install
 npm run start:all
 ```
 
-Use `npm run stop:all` to stop. See [docs/usage.md](docs/usage.md) for commands and autostart.
+Use `npm run stop:all` to stop. Run `npm run status` for a live-updating dashboard (refreshes every 500 ms; press Ctrl+C to exit). See [docs/usage.md](docs/usage.md) for commands and autostart.
 
 ---
 

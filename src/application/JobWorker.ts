@@ -2,12 +2,15 @@ import type { TranscriptionJob } from "../domain/TranscriptionJob.js";
 import { TranscriptionJobState } from "../domain/TranscriptionJob.js";
 import { TranscriptionJobQueue } from "../domain/TranscriptionJobQueue.js";
 import type { Logger } from "../infrastructure/logging/Logger.js";
+import type { RuntimeStatus } from "../infrastructure/status/RuntimeStatus.js";
 import { TranscriptionService } from "./TranscriptionService.js";
 import path from "node:path";
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export type StatusUpdater = (partial: Partial<Omit<RuntimeStatus, "updatedAt">>) => void;
 
 /**
  * JobWorker continuously pulls TranscriptionJob instances from a TranscriptionJobQueue
@@ -17,7 +20,8 @@ export class JobWorker {
   constructor(
     private readonly queue: TranscriptionJobQueue,
     private readonly service: TranscriptionService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly statusUpdater?: StatusUpdater
   ) {}
 
   /**
@@ -34,6 +38,12 @@ export class JobWorker {
         continue;
       }
 
+      this.statusUpdater?.({
+        state: "processing",
+        currentFile: path.basename(job.audioFile.path),
+        queueLength: this.queue.getLength(),
+        lastError: null
+      });
       await this.processJob(job);
     }
 
@@ -71,6 +81,12 @@ export class JobWorker {
         audioFile: job.audioFile.path,
         transcriptPath
       });
+      this.statusUpdater?.({
+        state: "idle",
+        currentFile: null,
+        queueLength: this.queue.getLength(),
+        lastError: null
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       job.state = TranscriptionJobState.Failed;
@@ -81,6 +97,12 @@ export class JobWorker {
         jobId: job.id,
         audioFile: job.audioFile.path,
         error: message
+      });
+      this.statusUpdater?.({
+        state: "error",
+        currentFile: null,
+        queueLength: this.queue.getLength(),
+        lastError: message
       });
     }
   }

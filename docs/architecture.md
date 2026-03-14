@@ -37,11 +37,11 @@ High-level orchestration: `TranscriptionService` (transcribe, title, write trans
 
 ### Infrastructure
 
-Config, logging, backend adapter, watcher: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode. Lives under `src/infrastructure/`.
+Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (state, queue length, current file). Lives under `src/infrastructure/`.
 
 ### CLI
 
-Entry point and command: `watch` (automatic transcription), wired to application services. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
+Entry point and command: `watch` (automatic transcription), wired to application services. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
 
 ### Python backend
 
@@ -50,9 +50,9 @@ Entry point and command: `watch` (automatic transcription), wired to application
 ## Project structure
 
 - **`src/domain/`** – AudioFile, TranscriptionJob, TranscriptionJobState, Transcript, TranscriptionJobQueue, WatchConfiguration
-- **`src/infrastructure/`** – config (YAML), logging, backend (MLX Whisper), watcher (FileSystemPoller)
+- **`src/infrastructure/`** – config (YAML), logging, backend (MLX Whisper), watcher (FileSystemPoller), status (RuntimeStatus → `runtime/status.json`)
 - **`src/application/`** – TranscriptionService, JobWorker
-- **`src/cli/`** – CLI entry and commands
+- **`src/cli/`** – CLI entry (watch), status viewer, startAll, stopAll, ingest, titlePreview
 - **`py-backend/`** – MLX Whisper script; `timestamp_preview.py` for one-off formatted preview
 - **`config.yaml`** – main configuration
 - **`UbiquitousLanguageGlossary.md`** – domain glossary

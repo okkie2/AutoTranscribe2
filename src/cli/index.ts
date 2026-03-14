@@ -8,6 +8,7 @@ import { TranscriptionJobQueue } from "../domain/TranscriptionJobQueue.js";
 import { FileSystemPoller } from "../infrastructure/watcher/FileSystemPoller.js";
 import { JobWorker } from "../application/JobWorker.js";
 import { createTitleSuggester } from "../infrastructure/title/TitleSuggesterFactory.js";
+import { createStatusUpdater, writeStatus } from "../infrastructure/status/RuntimeStatus.js";
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,13 +47,17 @@ async function main() {
     logger,
     config.backend.languageHint
   );
-  const worker = new JobWorker(queue, transcriptionService, logger);
+  const statusPath = config.runtimeStatusPath;
+  const statusUpdater = createStatusUpdater(statusPath);
+  const worker = new JobWorker(queue, transcriptionService, logger, statusUpdater);
 
   if (command === "watch") {
     if (!config.watch.enabled) {
       logger.warn("Watch is disabled in configuration. Exiting.");
       process.exit(0);
     }
+
+    writeStatus(statusPath, { state: "idle", queueLength: 0, currentFile: null, lastError: null });
 
     const controller = new AbortController();
     const { signal } = controller;

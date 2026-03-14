@@ -57,5 +57,7 @@ export interface AppConfig {
   title: TitleConfig;
   ingest: IngestConfig;
   autostart: AutostartConfig;
+  /** Resolved path to runtime/status.json (same directory as config file). */
+  runtimeStatusPath: string;
 }
 
