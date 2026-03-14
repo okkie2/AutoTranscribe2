@@ -25,12 +25,11 @@ On every push and pull request to `main`, the CI workflow runs on Ubuntu with No
 - `npm run build`
 - `npm test`
 
-Integration tests (`npm run test:integration`) are not run in CI; they require Apple Silicon and MLX Whisper. Run them locally when you change transcription or CLI behaviour.
+Integration testing for the automatic (watch) flow is manual: run the watcher, add an audio file to the watched directory, and confirm a transcript appears. Not run in CI (requires Apple Silicon and MLX Whisper).
 
 ## Testing commands
 
 - **Unit tests:** `npm test` – runs build and the TranscriptTitleFormatter (and other) unit tests.
-- **Integration test:** `npm run test:integration` – runs the CLI `transcribe` command on a fixture and checks that a transcript is created with the expected shape. Run when the watcher stack is not running. Not run in the pre-push hook or in CI (requires Apple Silicon / MLX).
 
 ## TODO / roadmap
 

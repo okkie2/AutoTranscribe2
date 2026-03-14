@@ -1,5 +1,5 @@
 # CI: build and unit tests on push and pull_request.
-# Integration tests (npm run test:integration) require Apple Silicon / MLX Whisper and are not run in CI; run them locally.
+# Integration testing for the watch flow is manual (Apple Silicon / MLX Whisper); not run in CI.
 name: CI
 
 on:

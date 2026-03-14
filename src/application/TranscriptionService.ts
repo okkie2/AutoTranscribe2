@@ -9,32 +9,16 @@ import { formatTranscriptWithTitle } from "./TranscriptTitleFormatter.js";
 
 /**
  * TranscriptionService exposes high-level operations for transcribing audio.
- * For the MVP we focus on single-file transcription initiated from the CLI
- * and jobs processed by the watcher.
+ * Transcripts are produced by the watcher: JobWorker pulls jobs from the queue
+ * and calls transcribeToDirectory for each.
  */
 export class TranscriptionService {
   constructor(
     private readonly backend: TranscriptionBackend,
     private readonly logger: Logger,
-    private readonly defaultOutputDirectory: string,
     private readonly titleSuggester: TitleSuggester,
     private readonly titleConfig: TitleConfig
   ) {}
-
-  /**
-   * Transcribe a single audio file path and write the transcript to a .md file
-   * in the default output directory.
-   *
-   * Returns the path to the written transcript file.
-   */
-  async transcribeSingle(audioFilePath: string, options?: { languageHint?: string | null }): Promise<string> {
-    const audioFile: AudioFile = { path: path.resolve(audioFilePath) };
-
-    const baseName = path.basename(audioFile.path, path.extname(audioFile.path));
-    const outputDir = path.resolve(this.defaultOutputDirectory);
-
-    return await this.transcribeToDirectory(audioFile.path, outputDir, baseName, options?.languageHint ?? null);
-  }
 
   /**
    * Transcribe the given audio file path and write a titled Markdown transcript

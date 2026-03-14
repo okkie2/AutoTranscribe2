@@ -56,7 +56,7 @@ This copies the hooks from `.githooks/` to `.git/hooks/`. The pre-push hook will
 ## Running tests locally
 
 - **Unit tests:** `npm test` — runs build and unit tests (e.g. TranscriptTitleFormatter). Fast; used by the pre-push hook and CI.
-- **Integration test:** `npm run test:integration` — runs the CLI `transcribe` command on a fixture. Requires the MLX Whisper environment; **not** run in the pre-push hook or in CI. Run when the watcher stack is not running.
+- **Integration:** The automatic (watch) flow can be tested manually: run the watcher, add an audio file to the watched directory, and confirm a transcript appears. Not run in CI (requires Apple Silicon / MLX Whisper).
 
 ---
 
@@ -68,7 +68,7 @@ On every push and pull request to `main`, GitHub Actions runs:
 - `npm run build`
 - `npm test`
 
-Integration tests are not run in CI (they require Apple Silicon and MLX Whisper). Run `npm run test:integration` locally when you change transcription or CLI behaviour.
+Integration testing for the watch flow is manual (run watcher, add file, check transcript); not run in CI (requires Apple Silicon and MLX Whisper).
 
 ---
 

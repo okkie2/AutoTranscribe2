@@ -1,24 +1,15 @@
 # Usage
 
-## Single-file transcription
-
-```bash
-autotranscribe transcribe /path/to/audio.m4a
-```
-
-Or without global link: `node dist/cli/index.js transcribe /path/to/audio.m4a`.
-
-- Runs MLX Whisper on the file, generates a title (Ollama/heuristic/none), and writes a titled `.md` under the configured `output_directory`.
-- The file contains a prettified body (paragraphs, timestamps, labels) and the original transcript at the bottom.
-- Filename example: `2025-12-03_14-03-14_kennismaking-met-sabine.md`.
-
-## Watcher mode
+## Watcher (automatic transcription)
 
 ```bash
 autotranscribe watch
 ```
 
+Or without global link: `node dist/cli/index.js watch`.
+
 - Polls `watch.directories` for new audio files, enqueues jobs, and writes transcripts to `output_directory`.
+- Each new audio file is transcribed automatically; MLX Whisper runs, a title is generated (Ollama/heuristic/none), and a titled `.md` is written (e.g. `2025-12-03_14-03-14_kennismaking-met-sabine.md`) with a prettified body and the original transcript at the bottom.
 - Stop with `Ctrl+C`.
 
 ## Preview formatted output (no Node pipeline)

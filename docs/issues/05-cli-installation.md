@@ -16,5 +16,5 @@ Keep the approach simple and reversible (e.g. `npm unlink`).
 ## Acceptance criteria
 
 - [ ] README or dedicated doc explains how to get `autotranscribe` on `$PATH` (e.g. `npm link`).
-- [ ] After following the steps, user can run `autotranscribe transcribe <file>` and `autotranscribe watch` from any directory.
+- [ ] After following the steps, user can run `autotranscribe watch` from any directory.
 - [ ] Uninstall or “unlink” is documented (e.g. `npm unlink autotranscribe` or equivalent).

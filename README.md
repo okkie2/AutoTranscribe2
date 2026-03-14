@@ -64,7 +64,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 
 ## Key features
 
-- **Two modes:** `autotranscribe transcribe <file>` and `autotranscribe watch`
+- **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
 - **MLX Whisper** on Apple Silicon; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
 - **JPR ingestion** and **unified start/stop** (`npm run start:all` / `stop:all`)
@@ -112,10 +112,14 @@ Issue drafts: [docs/issues/](docs/issues/). Roadmap: [TODO.md](TODO.md).
 
 **GitHub Wiki:** To fill the wiki, create the first page on the Wiki tab (one-time), then run `npm run push-wiki`.
 
+### Note for existing users
+
+This project supports **automatic transcription only**. The previous single-file command `autotranscribe transcribe <file>` has been removed. Use the watcher (`autotranscribe watch` or `npm run start:all`) so that new audio files in the configured directories are transcribed automatically.
+
 ---
 
 ## Development and testing
 
 - **Unit tests:** `npm test` (runs build + unit tests). Used by the pre-push hook and CI.
-- **Integration test:** `npm run test:integration` — run locally when the watcher is not running; not run in CI (requires Apple Silicon / MLX).
+- **Integration:** The automatic (watch) flow can be tested manually: start the watcher, add an audio file to the watched directory, and confirm a transcript appears. Not run in CI (requires Apple Silicon / MLX).
 - **Pre-push hook:** After cloning, run `npm run install-hooks` once. Before each push, `npm run build` and `npm test` run automatically; if they fail, the push is blocked. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full commit/push workflow and how to fix or bypass when tests fail.

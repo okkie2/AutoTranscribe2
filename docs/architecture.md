@@ -41,7 +41,7 @@ Config, logging, backend adapter, watcher: YAML config loader, `ConsoleAndFileLo
 
 ### CLI
 
-Entry point and commands: `transcribe` and `watch`, wired to application services. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
+Entry point and command: `watch` (automatic transcription), wired to application services. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
 
 ### Python backend
 

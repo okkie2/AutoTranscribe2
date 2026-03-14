@@ -8,7 +8,7 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 
 - **iCloud Just Press Record ingestion** – `npm run ingest:jpr` watches the JPR iCloud folder, flattens dated subfolders into the recordings directory, normalises filenames (`YYYY-MM-DD_HH-MM-SS_...`), optional cleanup after copy.
 - **Readable transcript format** – Paragraphs with timestamps and labels; original transcript at bottom. Preview script: `python py-backend/timestamp_preview.py <file> --language nl`.
-- **CLI integration test** – `npm run test:integration` runs the transcribe command on a fixture and checks output.
+- **Unit tests** – `npm test` runs build and unit tests; integration for the watch flow is manual (run watcher, add file, check transcript).
 - **Unified start/stop** – `npm run start:all` (build, Ollama check, ingest:jpr + watcher); `npm run stop:all` (SIGINT via PID file).
 - **Config-driven autostart** – `autostart.enabled` / `autostart.label` in `config.yaml`; `npm run autostart:install` writes launchd plist for login.
 
@@ -21,7 +21,6 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
   - Start with:
     - `npm run build`
     - `npm test`
-    - `npm run test:integration`
   - Add a GitHub Actions workflow so changes are checked automatically.
   - Where the real MLX backend is hard to run in CI, prefer a mocked backend for stable tests.
 

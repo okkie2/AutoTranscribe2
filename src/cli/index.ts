@@ -36,7 +36,6 @@ async function main() {
   const transcriptionService = new TranscriptionService(
     backend,
     logger,
-    config.watch.outputDirectory,
     titleSuggester,
     config.title
   );
@@ -49,26 +48,7 @@ async function main() {
   );
   const worker = new JobWorker(queue, transcriptionService, logger);
 
-  if (command === "transcribe") {
-    const audioPath = args[0];
-    if (!audioPath) {
-      console.error("Usage: autotranscribe transcribe <audio-file>");
-      process.exit(1);
-    }
-
-    try {
-      const transcriptPath = await transcriptionService.transcribeSingle(audioPath, {
-        languageHint: config.backend.languageHint
-      });
-      console.log(`Transcript written to: ${transcriptPath}`);
-      process.exit(0);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error("Transcription failed", { error: message });
-      console.error(`Transcription failed: ${message}`);
-      process.exit(1);
-    }
-  } else if (command === "watch") {
+  if (command === "watch") {
     if (!config.watch.enabled) {
       logger.warn("Watch is disabled in configuration. Exiting.");
       process.exit(0);
@@ -110,10 +90,8 @@ function printHelp() {
 
 Usage:
   autotranscribe watch
-      Start the long-running watcher that polls configured directories.
-
-  autotranscribe transcribe <audio-file>
-      Transcribe a single audio file and write a Markdown (.md) transcript.
+      Start the long-running watcher that polls configured directories
+      and transcribes new audio files automatically.
 `);
 }
 

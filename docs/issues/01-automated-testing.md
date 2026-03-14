@@ -10,13 +10,12 @@ Add a GitHub Actions workflow that runs on each push and pull request:
 
 - `npm run build`
 - `npm test`
-- `npm run test:integration`
 
-Where the real MLX Whisper backend is hard or impossible to run in CI (e.g. no Apple Silicon, no GPU), use a mocked backend so tests are stable and fast. Keep integration tests that need the real backend runnable locally only and document that.
+Integration testing for the watch flow is manual (requires Apple Silicon / MLX Whisper). Where the real backend is hard or impossible to run in CI, use a mocked backend for any future automated integration tests; document that full integration is run locally.
 
 ## Acceptance criteria
 
 - [ ] GitHub Actions workflow runs on push and pull request to main (or default branch).
-- [ ] Workflow runs `npm run build`, `npm test`, and `npm run test:integration` (or equivalent with mocked backend).
+- [ ] Workflow runs `npm run build` and `npm test`.
 - [ ] CI completes in a reasonable time; flaky or environment-dependent tests are isolated or skipped in CI.
 - [ ] README or CONTRIBUTING mentions how to run full tests locally.

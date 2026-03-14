@@ -33,12 +33,11 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 - **ConfigurationFile**: The YAML configuration file (`config.yaml`) that defines project-wide settings for the CLI and watcher (e.g. watched paths, polling interval, default output locations, backend configuration). One file for MVP; environment-specific variants may be added later.
 
 - **CLICommand**: A user-invoked command exposed by the CLI interface. For MVP:
-  - `autotranscribe watch`: Starts the long-running watcher process that submits `TranscriptionJob`s as new `AudioFile`s appear.
-  - `autotranscribe transcribe <audio-file>`: Runs a single `TranscriptionJob` for the specified `AudioFile` and exits when done.
+  - `autotranscribe watch`: Starts the long-running watcher process that submits `TranscriptionJob`s as new `AudioFile`s appear and transcribes them automatically.
 
 - **LogEntry**: A single structured message produced by the logging system, including at least a timestamp, severity (e.g. info, warn, error), and human-readable text. For MVP, log entries are written both to the console and to a rolling or append-only logfile.
 
-- **LogFile**: The persistent file on disk where log entries are appended. Used for later inspection and debugging of watcher runs and single-file transcriptions.
+- **LogFile**: The persistent file on disk where log entries are appended. Used for later inspection and debugging of watcher runs.
 
 ### Terms Explicitly Avoided or Deferred
 
