@@ -66,7 +66,7 @@ This writes a `~/Library/LaunchAgents/com.autotranscribe2.startall.plist` that r
   - Writes `.md` transcripts alongside (or separate from) recordings
   - Adds a `# Title` heading at the top of each transcript
   - Uses `{timestamp}_{slug}.md` filenames (or `{timestamp}_Untitled.md` on fallback)
-  - **Readable format**: body is split into paragraphs (alineas), each with a timestamp and short label (e.g. `**[00:00] Opening of the meeting**`), followed by the paragraph text
+  - **Prettified body**: the raw transcript is made readable by adding spaces, paragraph breaks (alineas), timestamps, and short keyword-style labels per paragraph (e.g. `**[00:00] Opening of the meeting**`), so you can skim and jump back into the audio
   - The **original, unformatted transcript** is appended at the bottom under `---` / "Original transcript", so nothing is lost
 - **Logging**
   - Human-readable, timestamped logs to console
