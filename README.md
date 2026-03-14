@@ -78,13 +78,26 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 git clone https://github.com/okkie2/AutoTranscribe2.git
 cd AutoTranscribe2
 npm install
+```
+
+Then choose how you want to run the app:
+
+**Try quickly** — Run in the foreground (good for a first test). The app stops when you close the terminal or press Ctrl+C.
+
+```bash
 npm run start:all
 ```
 
-- **Stop:** `npm run stop:all`
+**Run permanently in the background** — After the first run above, install the autostart agent so the app starts at every login and keeps running. You can then close the terminal; it will keep transcribing.
+
+1. In `config.yaml`, set `autostart.enabled: true` (and leave `autostart.label` as-is).
+2. Run once: `npm run autostart:install`
+
+From then on, the app starts automatically when you log in. To stop it: `npm run stop:all`. To disable autostart, unload the launch agent (see [docs/usage.md](docs/usage.md)).
+
 - **Status monitor:** In another terminal, run `npm run status` for a live-updating dashboard (refreshes every 500 ms; shows state, queue, current file). Press Ctrl+C to exit.
 
-See [docs/usage.md](docs/usage.md) for commands and autostart.
+See [docs/usage.md](docs/usage.md) for full commands and autostart details.
 
 ---
 
