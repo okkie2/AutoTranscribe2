@@ -37,7 +37,7 @@ High-level orchestration: `TranscriptionService` (transcribe, title, write trans
 
 ### Infrastructure
 
-Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (`runtimeActivityState`, queue length, current file, last error, freshness derived from `updatedAt`). Runtime ownership artifacts live alongside this status data: `runtime/managed-stack.lock.json` establishes `ManagedWatcherStack` ownership, while `.autotranscribe2-pids.json` remains as a legacy compatibility artifact. Lives under `src/infrastructure/`.
+Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (`runtimeActivityState`, queue length, current file, last error, freshness derived from `updatedAt`). Runtime ownership artifacts live alongside this status data: `runtime/managed-stack.lock.json` establishes `ManagedWatcherStack` ownership, while `.autotranscribe2-pids.json` remains as a legacy compatibility artifact. A lightweight tracing module writes the append-only `Diagnostic Trace` to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl` for control-flow and state-transition debugging. Lives under `src/infrastructure/`.
 
 ### CLI
 

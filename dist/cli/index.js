@@ -8,13 +8,26 @@ import { FileSystemPoller } from "../infrastructure/watcher/FileSystemPoller.js"
 import { JobWorker } from "../application/JobWorker.js";
 import { createTitleSuggester } from "../infrastructure/title/TitleSuggesterFactory.js";
 import { createStatusUpdater, readStatus, writeStatus } from "../infrastructure/status/RuntimeStatus.js";
+import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
+import { exportDiagnosticBundle } from "../application/Diagnostics.js";
 import { runMenu } from "./menu.js";
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 async function main() {
     const [, , command, ...args] = process.argv;
+    traceEvent({
+        event: "command_received",
+        source: "cli:index",
+        command: command ?? "help",
+        metadata: { argv: process.argv.slice(2) }
+    });
     if (!command || command === "--help" || command === "-h") {
+        traceEvent({
+            event: "command_parsed",
+            source: "cli:index",
+            command: "help"
+        });
         printHelp();
         process.exit(0);
     }
@@ -37,6 +50,11 @@ async function main() {
     const poller = new FileSystemPoller(config.watch, queue, logger, config.backend.languageHint, statusUpdater);
     const worker = new JobWorker(queue, transcriptionService, logger, statusUpdater);
     if (command === "watch") {
+        traceEvent({
+            event: "command_parsed",
+            source: "cli:index",
+            command: "watch"
+        });
         if (!config.watch.enabled) {
             logger.warn("Watch is disabled in configuration. Exiting.");
             process.exit(0);
@@ -86,10 +104,30 @@ async function main() {
         process.exit(0);
     }
     else if (command === "menu") {
+        traceEvent({
+            event: "command_parsed",
+            source: "cli:index",
+            command: "menu"
+        });
         await runMenu(config);
+    }
+    else if (command === "diagnostics") {
+        traceEvent({
+            event: "command_parsed",
+            source: "cli:index",
+            command: "diagnostics"
+        });
+        const bundle = exportDiagnosticBundle(config);
+        console.log(`Diagnostic bundle exported to ${bundle.bundlePath}`);
         process.exit(0);
     }
     else {
+        traceEvent({
+            event: "command_rejected",
+            source: "cli:index",
+            command,
+            metadata: { argv: args }
+        });
         console.error(`Unknown command: ${command}`);
         printHelp();
         process.exit(1);
@@ -106,6 +144,10 @@ Usage:
   autotranscribe menu
       Open the simple operational menu for watcher control, recent
       TranscriptionJobs, and the LatestTranscript.
+
+  autotranscribe diagnostics
+      Export a diagnostic bundle with the latest CLI trace, config,
+      and reconciled state snapshot.
 `);
 }
 main().catch((err) => {

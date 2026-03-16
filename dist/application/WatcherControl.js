@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { readStatus } from "../infrastructure/status/RuntimeStatus.js";
+import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
 import { buildCompactStatusSnapshot, formatCompactStatusSnapshotLines, formatDashboardLines } from "./StatusSnapshot.js";
 const LEGACY_PID_FILE = ".autotranscribe2-pids.json";
 const STACK_LOCK_FILENAME = "managed-stack.lock.json";
@@ -151,6 +152,38 @@ export function reconcileManagedWatcherStack(config) {
         detail
     };
 }
+export function getDiagnosticStateSnapshot(config) {
+    const status = readStatus(config.runtimeStatusPath);
+    const reconciliation = reconcileManagedWatcherStack(config);
+    const latestTranscript = getLatestTranscript(config);
+    const statusFreshness = formatDashboardLines(status, config.runtimeStatusPath).statusFreshness;
+    return {
+        watcherProcessState: reconciliation.watcherProcessState,
+        reconciledProcessState: reconciliation.reconciledProcessState,
+        runtimeActivityState: status?.runtimeActivityState ?? null,
+        statusFreshness,
+        queueLength: status?.queueLength ?? 0,
+        currentFile: status?.currentFile ?? null,
+        currentJobId: status?.currentJobId ?? null,
+        latestTranscript: latestTranscript ? path.basename(latestTranscript.transcriptPath) : null,
+        lastError: status?.lastError ?? null,
+        updatedAt: status?.updatedAt ?? null,
+        watchPid: reconciliation.watchPid,
+        ingestPid: reconciliation.ingestPid,
+        hasLock: reconciliation.hasLock,
+        hasLegacyPidFile: reconciliation.hasLegacyPidFile,
+        runtimeStatusFresh: reconciliation.runtimeStatusFresh,
+        detail: reconciliation.detail
+    };
+}
+function traceObservedState(config, source, command) {
+    traceEvent({
+        event: "state_observed",
+        source,
+        command,
+        observed_state: getDiagnosticStateSnapshot(config)
+    });
+}
 function mapReconciledStateToWatcherProcessState(reconciledProcessState) {
     switch (reconciledProcessState) {
         case "running":
@@ -253,10 +286,56 @@ function attemptStartOllama() {
 }
 export async function startWatcherControl(config) {
     const reconciliation = reconcileManagedWatcherStack(config);
+    const observedState = getDiagnosticStateSnapshot(config);
+    traceEvent({
+        event: "start_requested",
+        source: "WatcherControl",
+        command: "start",
+        internal_state: { requestedAction: "start" },
+        observed_state: observedState
+    });
+    traceEvent({
+        event: "transition_guard_evaluated",
+        source: "WatcherControl",
+        command: "start",
+        observed_state: observedState,
+        metadata: {
+            guard: "managed_stack_start_allowed",
+            evaluated_value: ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState),
+            source_of_truth: "reconciled_process_state"
+        }
+    });
     if (reconciliation.reconciledProcessState === "running") {
+        traceEvent({
+            event: "state_mismatch_detected",
+            source: "WatcherControl",
+            command: "start",
+            observed_state: observedState,
+            metadata: { reason: "start requested while managed stack already running" }
+        });
+        traceEvent({
+            event: "start_skipped_already_running",
+            source: "WatcherControl",
+            command: "start",
+            observed_state: observedState
+        });
         throw new Error("Managed watcher stack is already running.");
     }
     if (["partial", "inconsistent", "error"].includes(reconciliation.reconciledProcessState)) {
+        traceEvent({
+            event: "state_mismatch_detected",
+            source: "WatcherControl",
+            command: "start",
+            observed_state: observedState,
+            metadata: { reason: "start requested while managed stack is inconsistent" }
+        });
+        traceEvent({
+            event: "start_failed",
+            source: "WatcherControl",
+            command: "start",
+            observed_state: observedState,
+            metadata: { reason: reconciliation.detail }
+        });
         throw new Error(`Managed watcher stack is in an inconsistent state: ${reconciliation.detail}`);
     }
     if (reconciliation.reconciledProcessState === "staleLock") {
@@ -286,20 +365,77 @@ export async function startWatcherControl(config) {
         const started = reconcileManagedWatcherStack(config);
         if (started.reconciledProcessState !== "running") {
             cleanupStackArtifacts(config);
+            traceEvent({
+                event: "start_failed",
+                source: "WatcherControl",
+                command: "start",
+                observed_state: getDiagnosticStateSnapshot(config),
+                metadata: { reason: started.detail }
+            });
             throw new Error(`Managed watcher stack failed to stabilize: ${started.detail}`);
         }
+        traceObservedState(config, "WatcherControl", "start");
+        traceEvent({
+            event: "start_succeeded",
+            source: "WatcherControl",
+            command: "start",
+            observed_state: getDiagnosticStateSnapshot(config),
+            metadata: { watchPid: watch.pid, ingestPid: ingest.pid }
+        });
         console.log("[WatcherControl] Started ingest:jpr (PID:", ingest.pid, "), watcher (PID:", watch.pid, ").");
     }
     catch (error) {
         cleanupStackArtifacts(config);
+        traceEvent({
+            event: "start_failed",
+            source: "WatcherControl",
+            command: "start",
+            observed_state: getDiagnosticStateSnapshot(config),
+            metadata: { reason: error instanceof Error ? error.message : String(error) }
+        });
         throw error;
     }
 }
 export async function stopWatcherControl(config) {
     console.log("[WatcherControl] Stopping AutoTranscribe2 watcher control...");
     const reconciliation = reconcileManagedWatcherStack(config);
+    const observedState = getDiagnosticStateSnapshot(config);
+    traceEvent({
+        event: "stop_requested",
+        source: "WatcherControl",
+        command: "stop",
+        internal_state: { requestedAction: "stop" },
+        observed_state: observedState
+    });
+    traceEvent({
+        event: "transition_guard_evaluated",
+        source: "WatcherControl",
+        command: "stop",
+        observed_state: observedState,
+        metadata: {
+            guard: "managed_stack_stop_needed",
+            evaluated_value: reconciliation.reconciledProcessState !== "stopped",
+            source_of_truth: "reconciled_process_state"
+        }
+    });
+    if (reconciliation.reconciledProcessState === "stopped") {
+        traceEvent({
+            event: "stop_skipped_already_stopped",
+            source: "WatcherControl",
+            command: "stop",
+            observed_state: observedState
+        });
+        return;
+    }
     if (reconciliation.reconciledProcessState === "staleLock") {
         cleanupStackArtifacts(config);
+        traceEvent({
+            event: "stop_skipped_already_stopped",
+            source: "WatcherControl",
+            command: "stop",
+            observed_state: observedState,
+            metadata: { staleArtifactsCleaned: true }
+        });
         console.log("[WatcherControl] Cleaned up stale stack artifacts.");
         return;
     }
@@ -326,8 +462,22 @@ export async function stopWatcherControl(config) {
     }
     cleanupStackArtifacts(config);
     if (isPidRunning(reconciliation.watchPid) || isPidRunning(reconciliation.ingestPid)) {
+        traceEvent({
+            event: "stop_failed",
+            source: "WatcherControl",
+            command: "stop",
+            observed_state: getDiagnosticStateSnapshot(config),
+            metadata: { reason: "managed processes still alive after stop timeout" }
+        });
         throw new Error("Managed watcher stack did not stop cleanly.");
     }
+    traceObservedState(config, "WatcherControl", "stop");
+    traceEvent({
+        event: "stop_succeeded",
+        source: "WatcherControl",
+        command: "stop",
+        observed_state: getDiagnosticStateSnapshot(config)
+    });
 }
 export async function restartWatcherControl(config) {
     await stopWatcherControl(config);

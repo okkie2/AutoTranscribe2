@@ -16,3 +16,4 @@ Core operational terms for the CLI and runtime model:
 - **RuntimeActivityState**: Current runtime activity being performed by the system.
 - **StatusFreshness**: Freshness of runtime status derived from `updatedAt`.
 - **CurrentTranscriptionJob**: Current file or job reference shown to the operator in status output.
+- **Diagnostic Trace**: Structured JSONL event log used to reconstruct control-flow and state-transition behaviour after the fact.

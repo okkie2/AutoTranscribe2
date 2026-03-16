@@ -4,6 +4,7 @@ import chalk from "chalk";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import type { AppConfig } from "../infrastructure/config/AppConfig.js";
+import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
 import {
   getCompactStatusSnapshotLines,
   getCompactStatusSnapshot,
@@ -234,13 +235,31 @@ async function showResultScreen(
   selection: string,
   rl: readline.Interface
 ): Promise<{ running: boolean; requiresPause: boolean }> {
+  if (selection !== "") {
+    traceEvent({
+      event: "command_received",
+      source: "cli:menu",
+      command: selection
+    });
+  }
+
   switch (selection) {
     case "1":
     case "Show Watcher Status":
+      traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Show Watcher Status"
+      });
       await showLiveWatcherStatus(config, rl);
       return { running: true, requiresPause: false };
     case "2":
     case "Start Watcher":
+      traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Start Watcher"
+      });
       if (!canStartWatcher(config)) {
         console.clear();
         console.log("Watcher appears to be running already. Stop it first before starting again.");
@@ -252,6 +271,11 @@ async function showResultScreen(
       return { running: true, requiresPause: true };
     case "3":
     case "Stop Watcher":
+      traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Stop Watcher"
+      });
       if (!(await confirmAction(rl, "Stop Watcher"))) {
         console.clear();
         console.log("Stop Watcher cancelled.");
@@ -263,6 +287,11 @@ async function showResultScreen(
       return { running: true, requiresPause: true };
     case "4":
     case "Restart Watcher":
+      traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Restart Watcher"
+      });
       if (!(await confirmAction(rl, "Restart Watcher"))) {
         console.clear();
         console.log("Restart Watcher cancelled.");
@@ -274,9 +303,19 @@ async function showResultScreen(
       return { running: true, requiresPause: true };
     case "5":
     case "Show Recent TranscriptionJobs":
+      traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Show Recent TranscriptionJobs"
+      });
       renderRecentJobs(config);
       return { running: true, requiresPause: true };
     case "6": {
+      traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Open Latest Transcript"
+      });
       console.clear();
       const latestTranscript = openLatestTranscript(config);
       console.log(`Opened LatestTranscript: ${latestTranscript.transcriptPath}`);
@@ -285,12 +324,22 @@ async function showResultScreen(
     }
     case "7":
     case "Exit":
+      traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Exit"
+      });
       return { running: false, requiresPause: false };
     case "":
     case "r":
     case "R":
       return { running: true, requiresPause: false };
     default:
+      traceEvent({
+        event: "command_rejected",
+        source: "cli:menu",
+        command: selection
+      });
       console.clear();
       console.log("Unknown selection. Choose 1-7, press Enter to refresh, or type 'r'.");
       console.log("");
@@ -356,6 +405,17 @@ async function confirmAction(rl: readline.Interface, actionLabel: string): Promi
 
 function canStartWatcher(config: AppConfig): boolean {
   const reconciliation = reconcileManagedWatcherStack(config);
+  traceEvent({
+    event: "transition_guard_evaluated",
+    source: "cli:menu",
+    command: "Start Watcher",
+    observed_state: getCompactStatusSnapshot(config),
+    metadata: {
+      guard: "menu_start_allowed",
+      evaluated_value: ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState),
+      source_of_truth: "reconciled_process_state"
+    }
+  });
   return ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState);
 }
 

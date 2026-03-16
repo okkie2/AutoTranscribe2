@@ -1,4 +1,5 @@
 import { TranscriptionJobState } from "../domain/TranscriptionJob.js";
+import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
 import path from "node:path";
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,6 +47,15 @@ export class JobWorker {
             audioFile: job.audioFile.path,
             targetTranscriptPath: job.targetTranscriptPath
         });
+        traceEvent({
+            event: "transcript_processing_started",
+            source: "JobWorker",
+            metadata: {
+                jobId: job.id,
+                audioFile: job.audioFile.path,
+                targetTranscriptPath: job.targetTranscriptPath
+            }
+        });
         try {
             const outputDir = path.dirname(job.targetTranscriptPath);
             const originalBaseName = path.basename(job.audioFile.path, path.extname(job.audioFile.path));
@@ -57,6 +67,15 @@ export class JobWorker {
                 jobId: job.id,
                 audioFile: job.audioFile.path,
                 transcriptPath
+            });
+            traceEvent({
+                event: "transcript_processing_finished",
+                source: "JobWorker",
+                metadata: {
+                    jobId: job.id,
+                    audioFile: job.audioFile.path,
+                    transcriptPath
+                }
             });
             this.statusUpdater?.({
                 runtimeActivityState: "completed",

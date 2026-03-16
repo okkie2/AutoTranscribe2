@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { TranscriptionJobState } from "../../domain/TranscriptionJob.js";
+import { traceEvent } from "../tracing/TraceLogger.js";
 /**
  * FileSystemPoller scans configured directories for new audio files and
  * enqueues TranscriptionJob instances into a TranscriptionJobQueue.
@@ -36,6 +37,19 @@ export class FileSystemPoller {
             this.scanDirectory(root, root);
         }
     }
+    getFileMetadata(filePath) {
+        try {
+            const stat = fs.statSync(filePath);
+            return {
+                path: filePath,
+                size: stat.size,
+                mtime: stat.mtime.toISOString()
+            };
+        }
+        catch {
+            return { path: filePath };
+        }
+    }
     scanDirectory(rootDir, currentDir) {
         const entries = fs.readdirSync(currentDir, { withFileTypes: true });
         for (const entry of entries) {
@@ -49,11 +63,27 @@ export class FileSystemPoller {
             }
             const resolved = path.resolve(fullPath);
             if (this.seenFiles.has(resolved)) {
+                traceEvent({
+                    event: "transcript_duplicate_ignored",
+                    source: "FileSystemPoller",
+                    metadata: {
+                        reason: "already_seen_in_this_process",
+                        ...this.getFileMetadata(resolved)
+                    }
+                });
                 continue;
             }
             if (this.transcriptAlreadyExists(rootDir, resolved)) {
                 this.logger.info("Skipping audio file because transcript already exists", {
                     audioFile: resolved
+                });
+                traceEvent({
+                    event: "transcript_duplicate_ignored",
+                    source: "FileSystemPoller",
+                    metadata: {
+                        reason: "transcript_already_exists",
+                        ...this.getFileMetadata(resolved)
+                    }
                 });
                 this.seenFiles.add(resolved);
                 continue;
@@ -74,6 +104,15 @@ export class FileSystemPoller {
                 jobId: job.id,
                 audioFile: job.audioFile.path,
                 targetTranscriptPath: job.targetTranscriptPath
+            });
+            traceEvent({
+                event: "transcript_detected",
+                source: "FileSystemPoller",
+                metadata: {
+                    jobId: job.id,
+                    targetTranscriptPath: job.targetTranscriptPath,
+                    ...this.getFileMetadata(job.audioFile.path)
+                }
             });
             this.statusUpdater?.({
                 runtimeActivityState: "enqueuingJob",

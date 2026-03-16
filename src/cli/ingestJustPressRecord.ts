@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadConfig } from "../infrastructure/config/YamlConfigLoader.js";
 import { createStatusUpdater } from "../infrastructure/status/RuntimeStatus.js";
+import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
 
 const POLL_INTERVAL_MS = 3_000;
 
@@ -97,6 +98,21 @@ function listAudioFiles(root: string): string[] {
   return files.sort();
 }
 
+function getFileMetadata(filePath: string): Record<string, unknown> {
+  try {
+    const stat = fs.statSync(filePath);
+    return {
+      path: filePath,
+      size: stat.size,
+      mtime: stat.mtime.toISOString()
+    };
+  } catch {
+    return {
+      path: filePath
+    };
+  }
+}
+
 async function handleFile(
   filePath: string,
   sourceRoot: string,
@@ -112,6 +128,14 @@ async function handleFile(
 
   const resolvedPath = path.resolve(filePath);
   if (inFlight.has(resolvedPath)) {
+    traceEvent({
+      event: "transcript_duplicate_ignored",
+      source: "cli:ingestJustPressRecord",
+      metadata: {
+        reason: "already_in_flight",
+        ...getFileMetadata(filePath)
+      }
+    });
     return;
   }
   inFlight.add(resolvedPath);
@@ -123,7 +147,21 @@ async function handleFile(
   const tempPath = path.join(destRoot, `.tmp_${process.pid}_${destName}`);
 
   console.log("New JPR recording detected:", filePath);
+  traceEvent({
+    event: "transcript_detected",
+    source: "cli:ingestJustPressRecord",
+    metadata: getFileMetadata(filePath)
+  });
   try {
+    traceEvent({
+      event: "transcript_processing_started",
+      source: "cli:ingestJustPressRecord",
+      metadata: {
+        phase: "ingest",
+        destinationPath: destPath,
+        ...getFileMetadata(filePath)
+      }
+    });
     statusUpdater({
       runtimeActivityState: "waitingForStableFile",
       currentFile: path.basename(filePath),
@@ -160,6 +198,16 @@ async function handleFile(
     fs.unlinkSync(filePath);
     console.log("Removed source:", filePath);
     maybeRemoveEmptyParent(path.dirname(filePath), sourceRoot);
+    traceEvent({
+      event: "transcript_processing_finished",
+      source: "cli:ingestJustPressRecord",
+      metadata: {
+        phase: "ingest",
+        sourcePath: filePath,
+        destinationPath: destPath,
+        ...getFileMetadata(destPath)
+      }
+    });
     statusUpdater({
       runtimeActivityState: "completed",
       currentFile: null,

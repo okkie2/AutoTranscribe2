@@ -67,6 +67,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
 - **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point with a compact `StatusSnapshot`, manual refresh, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
 - **Single-instance runtime guard:** menu control, `npm run start:all`, and launchd autostart all respect the same `ManagedWatcherStack` lock, so duplicate watcher stacks are refused instead of processing the same file multiple times.
+- **Diagnostic tracing:** AutoTranscribe2 writes a lightweight JSONL `Diagnostic Trace` for CLI control flow, state observations, guard decisions, and transcript processing to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl`.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with runtime activity, freshness, queue length, current job, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
 - **MLX Whisper** on Apple Silicon; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
@@ -127,6 +128,12 @@ If `autotranscribe` is not yet installed on your `PATH`, the root-local fallback
 
 ```bash
 npm run menu
+```
+
+To export the latest diagnostic bundle for debugging:
+
+```bash
+autotranscribe diagnostics
 ```
 
 ---

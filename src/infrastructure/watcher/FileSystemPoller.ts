@@ -7,6 +7,7 @@ import type { TranscriptionJob } from "../../domain/TranscriptionJob.js";
 import { TranscriptionJobState } from "../../domain/TranscriptionJob.js";
 import type { AudioFile } from "../../domain/AudioFile.js";
 import type { RuntimeStatus } from "../status/RuntimeStatus.js";
+import { traceEvent } from "../tracing/TraceLogger.js";
 
 type StatusUpdater = (partial: Partial<Omit<RuntimeStatus, "updatedAt">>) => void;
 
@@ -48,6 +49,19 @@ export class FileSystemPoller {
     }
   }
 
+  private getFileMetadata(filePath: string): Record<string, unknown> {
+    try {
+      const stat = fs.statSync(filePath);
+      return {
+        path: filePath,
+        size: stat.size,
+        mtime: stat.mtime.toISOString()
+      };
+    } catch {
+      return { path: filePath };
+    }
+  }
+
   private scanDirectory(rootDir: string, currentDir: string): void {
     const entries = fs.readdirSync(currentDir, { withFileTypes: true });
 
@@ -65,12 +79,28 @@ export class FileSystemPoller {
 
       const resolved = path.resolve(fullPath);
       if (this.seenFiles.has(resolved)) {
+        traceEvent({
+          event: "transcript_duplicate_ignored",
+          source: "FileSystemPoller",
+          metadata: {
+            reason: "already_seen_in_this_process",
+            ...this.getFileMetadata(resolved)
+          }
+        });
         continue;
       }
 
       if (this.transcriptAlreadyExists(rootDir, resolved)) {
         this.logger.info("Skipping audio file because transcript already exists", {
           audioFile: resolved
+        });
+        traceEvent({
+          event: "transcript_duplicate_ignored",
+          source: "FileSystemPoller",
+          metadata: {
+            reason: "transcript_already_exists",
+            ...this.getFileMetadata(resolved)
+          }
         });
         this.seenFiles.add(resolved);
         continue;
@@ -95,6 +125,15 @@ export class FileSystemPoller {
         jobId: job.id,
         audioFile: job.audioFile.path,
         targetTranscriptPath: job.targetTranscriptPath
+      });
+      traceEvent({
+        event: "transcript_detected",
+        source: "FileSystemPoller",
+        metadata: {
+          jobId: job.id,
+          targetTranscriptPath: job.targetTranscriptPath,
+          ...this.getFileMetadata(job.audioFile.path)
+        }
       });
 
       this.statusUpdater?.({

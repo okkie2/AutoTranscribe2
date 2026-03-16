@@ -35,6 +35,20 @@ This opens a lightweight interactive menu with exactly these actions:
 
 From the repo root, `npm run menu` is the local fallback if `autotranscribe` is not yet linked onto your `PATH`.
 
+## Diagnostic bundle
+
+```bash
+autotranscribe diagnostics
+```
+
+This exports a lightweight debugging bundle that contains:
+
+- the latest `Diagnostic Trace` from `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl`
+- the current `config.yaml`
+- the latest reconciled state snapshot
+
+The trace is append-only JSONL and records CLI commands, state observations, transition guards, state mismatches, and transcript processing events. It is designed to let a coding agent reconstruct what happened during a control-flow session without relying on a manual retelling.
+
 ## Preview formatted output (no Node pipeline)
 
 To get only the formatted transcript for a single file (e.g. to experiment with paragraph length):
