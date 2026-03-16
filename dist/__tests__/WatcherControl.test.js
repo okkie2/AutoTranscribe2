@@ -217,3 +217,27 @@ test("compact and detailed status use reconciled process state when stack is par
         assert.ok(detailed.lines.some((line) => line.includes("Watcher process: error")));
     });
 });
+test("reconcileManagedWatcherStack reports error when unmanaged watcher activity exists", () => {
+    return withTempCwd((rootDir) => {
+        const config = createTestConfig(rootDir);
+        const previousProcessList = process.env.AUTOTRANSCRIBE_PROCESS_LIST;
+        process.env.AUTOTRANSCRIBE_PROCESS_LIST = [
+            `${process.pid} node dist/__tests__/WatcherControl.test.js`,
+            "54321 node dist/cli/index.js watch"
+        ].join("\n");
+        try {
+            const reconciliation = reconcileManagedWatcherStack(config);
+            assert.equal(reconciliation.reconciledProcessState, "error");
+            assert.equal(reconciliation.watcherProcessState, "error");
+            assert.equal(reconciliation.unmanagedWatcherDetected, true);
+        }
+        finally {
+            if (previousProcessList === undefined) {
+                delete process.env.AUTOTRANSCRIBE_PROCESS_LIST;
+            }
+            else {
+                process.env.AUTOTRANSCRIBE_PROCESS_LIST = previousProcessList;
+            }
+        }
+    });
+});

@@ -48,6 +48,7 @@ export interface DiagnosticStateSnapshot {
   hasLock: boolean;
   hasLegacyPidFile: boolean;
   runtimeStatusFresh: boolean;
+  unmanagedWatcherDetected: boolean;
   detail: string;
 }
 
@@ -86,6 +87,7 @@ export interface StackReconciliation {
   hasLock: boolean;
   hasLegacyPidFile: boolean;
   runtimeStatusFresh: boolean;
+  unmanagedWatcherDetected: boolean;
   detail: string;
 }
 
@@ -190,6 +192,44 @@ function runtimeStatusLooksAlive(config: AppConfig): boolean {
   return Date.now() - updatedAt <= 30_000;
 }
 
+function listWatcherLikeProcesses(): Array<{ pid: number; command: string }> {
+  const overridden = process.env.AUTOTRANSCRIBE_PROCESS_LIST;
+  const raw = overridden ??
+    spawnSync("ps", ["-axo", "pid=,command="], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).stdout ??
+    "";
+
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^(\d+)\s+(.+)$/);
+      if (!match) return null;
+      return { pid: Number(match[1]), command: match[2] };
+    })
+    .filter((entry): entry is { pid: number; command: string } => entry !== null);
+}
+
+function detectUnmanagedWatcherActivity(managedPids: Array<number | null>): boolean {
+  const pidSet = new Set(managedPids.filter((pid): pid is number => typeof pid === "number"));
+
+  return listWatcherLikeProcesses().some(({ pid, command }) => {
+    if (pidSet.has(pid) || pid === process.pid) {
+      return false;
+    }
+
+    return (
+      command.includes("dist/cli/index.js watch") ||
+      command.includes("dist/cli/ingestJustPressRecord.js") ||
+      command.includes("node dist/cli/index.js watch") ||
+      command.includes("node dist/cli/ingestJustPressRecord.js")
+    );
+  });
+}
+
 export function reconcileManagedWatcherStack(config: AppConfig): StackReconciliation {
   const lock = readStackLock(config);
   const legacy = readLegacyPidFile();
@@ -200,6 +240,7 @@ export function reconcileManagedWatcherStack(config: AppConfig): StackReconcilia
   const hasLock = lock !== null;
   const hasLegacyPidFile = legacy !== null;
   const runtimeStatusFresh = runtimeStatusLooksAlive(config);
+  const unmanagedWatcherDetected = detectUnmanagedWatcherActivity([watchPid, ingestPid]);
 
   let reconciledProcessState: ReconciledProcessState;
   let detail: string;
@@ -207,6 +248,9 @@ export function reconcileManagedWatcherStack(config: AppConfig): StackReconcilia
   if (watchRunning && ingestRunning) {
     reconciledProcessState = "running";
     detail = "Both managed processes are alive.";
+  } else if (unmanagedWatcherDetected) {
+    reconciledProcessState = "error";
+    detail = "Watcher-like runtime activity exists outside the managed stack lock.";
   } else if (!watchRunning && !ingestRunning && (hasLock || hasLegacyPidFile)) {
     reconciledProcessState = "staleLock";
     detail = "Lock or PID artifacts exist but managed processes are gone.";
@@ -231,6 +275,7 @@ export function reconcileManagedWatcherStack(config: AppConfig): StackReconcilia
     hasLock,
     hasLegacyPidFile,
     runtimeStatusFresh,
+    unmanagedWatcherDetected,
     detail
   };
 }
@@ -257,6 +302,7 @@ export function getDiagnosticStateSnapshot(config: AppConfig): DiagnosticStateSn
     hasLock: reconciliation.hasLock,
     hasLegacyPidFile: reconciliation.hasLegacyPidFile,
     runtimeStatusFresh: reconciliation.runtimeStatusFresh,
+    unmanagedWatcherDetected: reconciliation.unmanagedWatcherDetected,
     detail: reconciliation.detail
   };
 }

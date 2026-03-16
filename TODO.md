@@ -33,7 +33,7 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
   - Handle failed jobs cleanly.
   - Avoid reprocessing the same files.
   - Make watcher behaviour resilient if the backend crashes or a file is incomplete.
-  - Add a thin enqueue-side deduplication guard if a single managed stack can still enqueue the same audio file more than once after stack locking.
+  - Revisit whether the discovery ledger should expire or compact old entries once restart-driven re-enqueue issues are confirmed resolved.
   - Review `Diagnostic Trace` sessions from real user runs and trim any low-signal events that do not help reconstruct state transitions.
 
 ---

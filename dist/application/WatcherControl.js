@@ -107,6 +107,38 @@ function runtimeStatusLooksAlive(config) {
         return false;
     return Date.now() - updatedAt <= 30000;
 }
+function listWatcherLikeProcesses() {
+    const overridden = process.env.AUTOTRANSCRIBE_PROCESS_LIST;
+    const raw = overridden ??
+        spawnSync("ps", ["-axo", "pid=,command="], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"]
+        }).stdout ??
+        "";
+    return raw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+        const match = line.match(/^(\d+)\s+(.+)$/);
+        if (!match)
+            return null;
+        return { pid: Number(match[1]), command: match[2] };
+    })
+        .filter((entry) => entry !== null);
+}
+function detectUnmanagedWatcherActivity(managedPids) {
+    const pidSet = new Set(managedPids.filter((pid) => typeof pid === "number"));
+    return listWatcherLikeProcesses().some(({ pid, command }) => {
+        if (pidSet.has(pid) || pid === process.pid) {
+            return false;
+        }
+        return (command.includes("dist/cli/index.js watch") ||
+            command.includes("dist/cli/ingestJustPressRecord.js") ||
+            command.includes("node dist/cli/index.js watch") ||
+            command.includes("node dist/cli/ingestJustPressRecord.js"));
+    });
+}
 export function reconcileManagedWatcherStack(config) {
     const lock = readStackLock(config);
     const legacy = readLegacyPidFile();
@@ -117,11 +149,16 @@ export function reconcileManagedWatcherStack(config) {
     const hasLock = lock !== null;
     const hasLegacyPidFile = legacy !== null;
     const runtimeStatusFresh = runtimeStatusLooksAlive(config);
+    const unmanagedWatcherDetected = detectUnmanagedWatcherActivity([watchPid, ingestPid]);
     let reconciledProcessState;
     let detail;
     if (watchRunning && ingestRunning) {
         reconciledProcessState = "running";
         detail = "Both managed processes are alive.";
+    }
+    else if (unmanagedWatcherDetected) {
+        reconciledProcessState = "error";
+        detail = "Watcher-like runtime activity exists outside the managed stack lock.";
     }
     else if (!watchRunning && !ingestRunning && (hasLock || hasLegacyPidFile)) {
         reconciledProcessState = "staleLock";
@@ -149,6 +186,7 @@ export function reconcileManagedWatcherStack(config) {
         hasLock,
         hasLegacyPidFile,
         runtimeStatusFresh,
+        unmanagedWatcherDetected,
         detail
     };
 }
@@ -173,6 +211,7 @@ export function getDiagnosticStateSnapshot(config) {
         hasLock: reconciliation.hasLock,
         hasLegacyPidFile: reconciliation.hasLegacyPidFile,
         runtimeStatusFresh: reconciliation.runtimeStatusFresh,
+        unmanagedWatcherDetected: reconciliation.unmanagedWatcherDetected,
         detail: reconciliation.detail
     };
 }

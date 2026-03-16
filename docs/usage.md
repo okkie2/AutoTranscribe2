@@ -73,6 +73,7 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 - **Logs:** Console and file logs go to the path in `logging.log_file` (default `~/Documents/AutoTranscribe2/logs/autotranscribe.log`).
 - **Runtime status:** When the runtime is active, it writes `runtime/status.json` (next to `config.yaml`) with `runtimeActivityState`, queue length, current file, last error, and `updatedAt`. Freshness is derived separately from `updatedAt`.
 - **Stack ownership:** `runtime/managed-stack.lock.json` is the `StackLock` for the managed watcher stack. AutoTranscribe2 reconciles that lock with live PIDs and the legacy `.autotranscribe2-pids.json` file before starting, stopping, or reporting process state.
+- **Discovery ledger:** The watcher persists a minimal ledger of already discovered recordings in the transcript output directory so a watcher restart does not re-enqueue the same recording paths again.
 
 ## Live status dashboard
 

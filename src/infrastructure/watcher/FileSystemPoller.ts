@@ -10,6 +10,7 @@ import type { RuntimeStatus } from "../status/RuntimeStatus.js";
 import { traceEvent } from "../tracing/TraceLogger.js";
 
 type StatusUpdater = (partial: Partial<Omit<RuntimeStatus, "updatedAt">>) => void;
+const DISCOVERY_LEDGER_FILENAME = "discovered-audio-files.json";
 
 /**
  * FileSystemPoller scans configured directories for new audio files and
@@ -19,6 +20,7 @@ type StatusUpdater = (partial: Partial<Omit<RuntimeStatus, "updatedAt">>) => voi
  */
 export class FileSystemPoller {
   private readonly seenFiles = new Set<string>();
+  private readonly discoveryLedgerPath: string;
 
   constructor(
     private readonly config: WatchConfiguration,
@@ -26,7 +28,41 @@ export class FileSystemPoller {
     private readonly logger: Logger,
     private readonly defaultLanguageHint: string | null,
     private readonly statusUpdater?: StatusUpdater
-  ) {}
+  ) {
+    this.discoveryLedgerPath = path.join(path.resolve(this.config.outputDirectory), DISCOVERY_LEDGER_FILENAME);
+    this.loadDiscoveryLedger();
+  }
+
+  private loadDiscoveryLedger(): void {
+    try {
+      if (!fs.existsSync(this.discoveryLedgerPath)) {
+        return;
+      }
+
+      const raw = fs.readFileSync(this.discoveryLedgerPath, "utf8");
+      const entries = JSON.parse(raw) as string[];
+      for (const entry of entries) {
+        if (typeof entry === "string" && entry.length > 0) {
+          this.seenFiles.add(entry);
+        }
+      }
+    } catch {
+      // A missing or invalid ledger should not block the watcher.
+    }
+  }
+
+  private persistDiscoveryLedger(): void {
+    try {
+      fs.mkdirSync(path.dirname(this.discoveryLedgerPath), { recursive: true });
+      fs.writeFileSync(
+        this.discoveryLedgerPath,
+        JSON.stringify([...this.seenFiles].sort(), null, 2),
+        "utf8"
+      );
+    } catch {
+      // Ledger persistence is best-effort only.
+    }
+  }
 
   /**
    * Perform a single scan of all configured directories.
@@ -103,10 +139,12 @@ export class FileSystemPoller {
           }
         });
         this.seenFiles.add(resolved);
+        this.persistDiscoveryLedger();
         continue;
       }
 
       this.seenFiles.add(resolved);
+      this.persistDiscoveryLedger();
 
       const audioFile: AudioFile = { path: resolved };
       const targetTranscriptPath = this.computeTargetTranscriptPath(rootDir, resolved);

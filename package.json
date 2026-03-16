@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test dist/__tests__/TranscriptTitleFormatter.test.js dist/__tests__/StatusDashboard.test.js dist/__tests__/WatcherControl.test.js dist/__tests__/Diagnostics.test.js",
+    "test": "npm run build && node --test dist/__tests__/TranscriptTitleFormatter.test.js dist/__tests__/StatusDashboard.test.js dist/__tests__/WatcherControl.test.js dist/__tests__/Diagnostics.test.js dist/__tests__/FileSystemPoller.test.js",
     "title:preview": "npm run build && node dist/cli/titlePreview.js",
     "ingest:jpr": "npm run build && node dist/cli/ingestJustPressRecord.js",
     "start:all": "npm run build && node dist/cli/startAll.js",
