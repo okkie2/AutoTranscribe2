@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+import chalk from "chalk";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { getCompactStatusSnapshotLines, getStatusSnapshot, listRecentTranscriptionJobs, openLatestTranscript, restartWatcherControl, startWatcherControl, stopWatcherControl } from "../application/WatcherControl.js";
+import { getCompactStatusSnapshotLines, getStatusSnapshot, listRecentTranscriptionJobs, openLatestTranscript, reconcileManagedWatcherStack, restartWatcherControl, startWatcherControl, stopWatcherControl } from "../application/WatcherControl.js";
 const MENU_OPTIONS = [
     "Show Watcher Status",
     "Start Watcher",
@@ -11,6 +12,7 @@ const MENU_OPTIONS = [
     "Open Latest Transcript",
     "Exit"
 ];
+const STATUS_REFRESH_INTERVAL_MS = 300;
 function renderMenu(config) {
     console.clear();
     for (const line of getCompactStatusSnapshotLines(config)) {
@@ -31,6 +33,147 @@ function renderDetailedStatus(config) {
     }
     console.log("");
 }
+function colorizeFreshness(statusFreshness) {
+    switch (statusFreshness) {
+        case "fresh":
+            return chalk.green;
+        case "stale":
+            return chalk.dim;
+        case "missing":
+            return chalk.red;
+        default:
+            return chalk.dim;
+    }
+}
+function colorizeWatcherProcessState(watcherProcessState) {
+    switch (watcherProcessState) {
+        case "running":
+            return chalk.green;
+        case "starting":
+        case "stopping":
+            return chalk.yellow;
+        case "error":
+            return chalk.red;
+        case "stopped":
+        default:
+            return chalk.dim;
+    }
+}
+function colorizeActivity(activity) {
+    switch (activity) {
+        case "idle":
+        case "completed":
+            return chalk.green;
+        case "failed":
+            return chalk.red;
+        case "scanning":
+        case "waitingForStableFile":
+        case "ingesting":
+        case "enqueuingJob":
+        case "processingTranscription":
+        case "writingTranscript":
+            return chalk.yellow;
+        default:
+            return chalk.dim;
+    }
+}
+function renderLiveDetailedStatus(config) {
+    const snapshot = getStatusSnapshot(config);
+    const color = colorizeFreshness(snapshot.statusFreshness);
+    const watcherProcessColor = colorizeWatcherProcessState(snapshot.watcherProcessState);
+    const activityColor = colorizeActivity(snapshot.runtimeActivityState);
+    const nowLabel = new Date().toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    });
+    console.clear();
+    console.log(`Current time: ${nowLabel}`);
+    console.log("");
+    for (const line of snapshot.lines) {
+        if (line.startsWith("Watcher process: ")) {
+            const value = line.replace(/^Watcher process:\s*/, "");
+            console.log("Watcher process: " + watcherProcessColor(value));
+        }
+        else if (line.startsWith("Activity: ")) {
+            const value = line.replace(/^Activity:\s*/, "");
+            console.log("Activity: " + activityColor(value));
+        }
+        else if (line.startsWith("Freshness: ")) {
+            const value = line.replace(/^Freshness:\s*/, "");
+            console.log("Freshness: " + color(value));
+        }
+        else {
+            console.log(line);
+        }
+    }
+    console.log("");
+    console.log("Press Enter to return to menu");
+}
+async function showLiveWatcherStatus(config, rl) {
+    if (!input.isTTY) {
+        renderDetailedStatus(config);
+        return;
+    }
+    rl.pause();
+    await new Promise((resolve) => {
+        const cleanup = () => {
+            clearInterval(intervalId);
+            input.off("data", onData);
+            input.setRawMode(false);
+            console.clear();
+            resolve();
+        };
+        const onData = (chunk) => {
+            const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+            if (text === "\r" || text === "\n") {
+                cleanup();
+            }
+        };
+        const intervalId = setInterval(() => renderLiveDetailedStatus(config), STATUS_REFRESH_INTERVAL_MS);
+        input.setRawMode(true);
+        input.resume();
+        input.on("data", onData);
+        renderLiveDetailedStatus(config);
+    });
+    rl.resume();
+}
+async function readMenuSelection(rl) {
+    if (!input.isTTY) {
+        return (await rl.question("Select an option: ")).trim();
+    }
+    output.write("Select an option: ");
+    rl.pause();
+    const selection = await new Promise((resolve) => {
+        const cleanup = (value) => {
+            input.off("data", onData);
+            input.setRawMode(false);
+            output.write("\n");
+            resolve(value);
+        };
+        const onData = (chunk) => {
+            const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+            if (text === "\u0003") {
+                input.setRawMode(false);
+                process.exit(130);
+            }
+            if (text === "\r" || text === "\n") {
+                cleanup("");
+                return;
+            }
+            const key = text.trim();
+            if (["1", "2", "3", "4", "5", "6", "7", "r", "R"].includes(key)) {
+                output.write(key);
+                cleanup(key);
+            }
+        };
+        input.setRawMode(true);
+        input.resume();
+        input.on("data", onData);
+    });
+    rl.resume();
+    return selection;
+}
 function renderRecentJobs(config) {
     const jobs = listRecentTranscriptionJobs(config);
     console.clear();
@@ -48,24 +191,42 @@ function renderRecentJobs(config) {
         console.log("");
     }
 }
-async function showResultScreen(config, selection) {
+async function showResultScreen(config, selection, rl) {
     switch (selection) {
         case "1":
         case "Show Watcher Status":
-            renderDetailedStatus(config);
-            return { running: true, requiresPause: true };
+            await showLiveWatcherStatus(config, rl);
+            return { running: true, requiresPause: false };
         case "2":
         case "Start Watcher":
+            if (!canStartWatcher(config)) {
+                console.clear();
+                console.log("Watcher appears to be running already. Stop it first before starting again.");
+                console.log("");
+                return { running: true, requiresPause: true };
+            }
             console.clear();
             await startWatcherControl(config);
             return { running: true, requiresPause: true };
         case "3":
         case "Stop Watcher":
+            if (!(await confirmAction(rl, "Stop Watcher"))) {
+                console.clear();
+                console.log("Stop Watcher cancelled.");
+                console.log("");
+                return { running: true, requiresPause: true };
+            }
             console.clear();
-            await stopWatcherControl();
+            await stopWatcherControl(config);
             return { running: true, requiresPause: true };
         case "4":
         case "Restart Watcher":
+            if (!(await confirmAction(rl, "Restart Watcher"))) {
+                console.clear();
+                console.log("Restart Watcher cancelled.");
+                console.log("");
+                return { running: true, requiresPause: true };
+            }
             console.clear();
             await restartWatcherControl(config);
             return { running: true, requiresPause: true };
@@ -94,14 +255,64 @@ async function showResultScreen(config, selection) {
             return { running: true, requiresPause: true };
     }
 }
+async function confirmAction(rl, actionLabel) {
+    if (!input.isTTY) {
+        while (true) {
+            const answer = (await rl.question(`Are you sure you want to ${actionLabel.toLowerCase()}? (y/n): `)).trim();
+            if (answer === "y" || answer === "Y")
+                return true;
+            if (answer === "n" || answer === "N")
+                return false;
+        }
+    }
+    output.write(`Are you sure you want to ${actionLabel.toLowerCase()}? (y/n): `);
+    rl.pause();
+    const confirmed = await new Promise((resolve) => {
+        const cleanup = (value) => {
+            input.off("data", onData);
+            input.setRawMode(false);
+            output.write("\n");
+            resolve(value);
+        };
+        const onData = (chunk) => {
+            const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+            if (text === "\u0003") {
+                input.setRawMode(false);
+                process.exit(130);
+            }
+            if (text === "\r" || text === "\n") {
+                return;
+            }
+            const key = text.trim();
+            if (key === "y" || key === "Y") {
+                output.write(key);
+                cleanup(true);
+                return;
+            }
+            output.write(key || "n");
+            if (key === "n" || key === "N") {
+                cleanup(false);
+            }
+        };
+        input.setRawMode(true);
+        input.resume();
+        input.on("data", onData);
+    });
+    rl.resume();
+    return confirmed;
+}
+function canStartWatcher(config) {
+    const reconciliation = reconcileManagedWatcherStack(config);
+    return ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState);
+}
 export async function runMenu(config) {
     const rl = readline.createInterface({ input, output });
     try {
         let running = true;
         while (running) {
             renderMenu(config);
-            const selection = (await rl.question("Select an option: ")).trim();
-            const result = await showResultScreen(config, selection);
+            const selection = await readMenuSelection(rl);
+            const result = await showResultScreen(config, selection, rl);
             running = result.running;
             if (running && result.requiresPause) {
                 await rl.question("Press Enter to return to menu");

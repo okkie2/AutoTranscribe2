@@ -26,9 +26,15 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **WatcherControl**: The operational control surface for the `Watcher`. It starts, stops, restarts, and reports on the watcher process using the existing runtime files and CLI scripts.
 
+- **ManagedWatcherStack**: The operator-managed runtime stack consisting of the watcher process and the Just Press Record ingester process. For a given repo/runtime root, only one managed stack may own runtime control at a time.
+
+- **StackLock**: The filesystem lock record that establishes ownership of the `ManagedWatcherStack`. It is used to prevent duplicate starts and to recover safely from stale runtime artifacts.
+
 - **StatusSnapshot**: A concise read model for showing the current watcher state to an operator. Derived from runtime status data plus watcher process information, and used for human-readable status views.
 
 - **WatcherProcessState**: The operator-facing lifecycle state of the watcher process itself. Current values: `running`, `stopped`, `starting`, `stopping`, `error`.
+
+- **ReconciledProcessState**: The authoritative operational state derived from lock artifacts, managed process liveness, and runtime ownership checks. Current values: `running`, `stopped`, `partial`, `staleLock`, `inconsistent`, `error`.
 
 - **RuntimeActivityState**: The current runtime activity being performed by the system. Distinct from process lifecycle and freshness. Examples: `idle`, `scanning`, `waitingForStableFile`, `ingesting`, `enqueuingJob`, `processingTranscription`, `writingTranscript`, `completed`, `failed`.
 

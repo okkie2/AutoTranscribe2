@@ -8,6 +8,9 @@ import {
   getCompactStatusSnapshot,
   getCompactStatusSnapshotLines,
   getLatestTranscript,
+  reconcileManagedWatcherStack,
+  startWatcherControl,
+  stopWatcherControl,
   getStatusSnapshot,
   listRecentTranscriptionJobs
 } from "../application/WatcherControl.js";
@@ -66,6 +69,46 @@ async function withTempCwd<T>(fn: (rootDir: string) => T | Promise<T>): Promise<
   }
 }
 
+function stackLockPath(config: AppConfig): string {
+  return path.join(path.dirname(config.runtimeStatusPath), "managed-stack.lock.json");
+}
+
+function writeStackArtifacts(
+  config: AppConfig,
+  pids: { watchPid?: number | null; ingestPid?: number | null }
+): void {
+  fs.mkdirSync(path.dirname(config.runtimeStatusPath), { recursive: true });
+  fs.writeFileSync(
+    stackLockPath(config),
+    JSON.stringify(
+      {
+        watchPid: pids.watchPid ?? null,
+        ingestPid: pids.ingestPid ?? null,
+        createdAt: new Date().toISOString(),
+        cwd: process.cwd(),
+        runtimeRoot: path.dirname(config.runtimeStatusPath),
+        hostname: "test-host",
+        lockVersion: 1
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.resolve(".autotranscribe2-pids.json"),
+    JSON.stringify(
+      {
+        watchPid: pids.watchPid ?? undefined,
+        ingestPid: pids.ingestPid ?? undefined
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+}
+
 test("listRecentTranscriptionJobs reads finished jobs from the log file", () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "autotranscribe2-jobs-"));
   const config = createTestConfig(rootDir);
@@ -112,6 +155,8 @@ test("getStatusSnapshot includes watcher process state and dashboard lines", () 
   return withTempCwd((rootDir) => {
     const config = createTestConfig(rootDir);
     fs.mkdirSync(path.dirname(config.runtimeStatusPath), { recursive: true });
+    fs.mkdirSync(path.resolve(config.watch.outputDirectory), { recursive: true });
+    fs.writeFileSync(path.join(path.resolve(config.watch.outputDirectory), "latest.md"), "# latest\n", "utf8");
     fs.writeFileSync(
       config.runtimeStatusPath,
       JSON.stringify({
@@ -128,6 +173,8 @@ test("getStatusSnapshot includes watcher process state and dashboard lines", () 
 
     assert.equal(snapshot.watcherProcessState, "stopped");
     assert.ok(snapshot.lines.some((line) => line.includes("Watcher process: stopped")));
+    assert.equal(snapshot.latestTranscript, "latest.md");
+    assert.ok(snapshot.lines.some((line) => line.includes("Latest transcript: latest.md")));
     assert.equal(snapshot.runtimeActivityState, "idle");
     assert.equal(snapshot.statusFreshness, "fresh");
     assert.ok(snapshot.lines.some((line) => line.includes("Activity: idle")));
@@ -164,5 +211,91 @@ test("getCompactStatusSnapshot includes watcher process state, queue, and latest
     assert.ok(lines.some((line) => line.includes("Freshness: fresh")));
     assert.ok(lines.some((line) => line.includes("Queue: 3 jobs")));
     assert.ok(lines.some((line) => line.includes("LatestTranscript: latest.md")));
+  });
+});
+
+test("reconcileManagedWatcherStack returns running when both managed processes are alive", () => {
+  return withTempCwd((rootDir) => {
+    const config = createTestConfig(rootDir);
+    writeStackArtifacts(config, { watchPid: process.pid, ingestPid: process.pid });
+
+    const reconciliation = reconcileManagedWatcherStack(config);
+
+    assert.equal(reconciliation.reconciledProcessState, "running");
+    assert.equal(reconciliation.watcherProcessState, "running");
+  });
+});
+
+test("reconcileManagedWatcherStack returns partial when only one managed process is alive", () => {
+  return withTempCwd((rootDir) => {
+    const config = createTestConfig(rootDir);
+    writeStackArtifacts(config, { watchPid: process.pid, ingestPid: 999999 });
+
+    const reconciliation = reconcileManagedWatcherStack(config);
+
+    assert.equal(reconciliation.reconciledProcessState, "partial");
+    assert.equal(reconciliation.watcherProcessState, "error");
+  });
+});
+
+test("reconcileManagedWatcherStack returns staleLock when artifacts remain but processes are gone", () => {
+  return withTempCwd((rootDir) => {
+    const config = createTestConfig(rootDir);
+    writeStackArtifacts(config, { watchPid: 999998, ingestPid: 999999 });
+
+    const reconciliation = reconcileManagedWatcherStack(config);
+
+    assert.equal(reconciliation.reconciledProcessState, "staleLock");
+    assert.equal(reconciliation.watcherProcessState, "stopped");
+  });
+});
+
+test("startWatcherControl refuses duplicate start when the managed stack is already running", async () => {
+  await withTempCwd(async (rootDir) => {
+    const config = createTestConfig(rootDir);
+    writeStackArtifacts(config, { watchPid: process.pid, ingestPid: process.pid });
+
+    await assert.rejects(
+      () => startWatcherControl(config),
+      /Managed watcher stack is already running/
+    );
+  });
+});
+
+test("stopWatcherControl cleans stale stack artifacts when no managed processes are alive", async () => {
+  await withTempCwd(async (rootDir) => {
+    const config = createTestConfig(rootDir);
+    writeStackArtifacts(config, { watchPid: 999998, ingestPid: 999999 });
+
+    await stopWatcherControl(config);
+
+    assert.equal(fs.existsSync(stackLockPath(config)), false);
+    assert.equal(fs.existsSync(path.resolve(".autotranscribe2-pids.json")), false);
+  });
+});
+
+test("compact and detailed status use reconciled process state when stack is partial", () => {
+  return withTempCwd((rootDir) => {
+    const config = createTestConfig(rootDir);
+    fs.mkdirSync(path.dirname(config.runtimeStatusPath), { recursive: true });
+    fs.writeFileSync(
+      config.runtimeStatusPath,
+      JSON.stringify({
+        runtimeActivityState: "processingTranscription",
+        queueLength: 1,
+        currentFile: "/tmp/example.m4a",
+        lastError: null,
+        updatedAt: new Date().toISOString()
+      }),
+      "utf8"
+    );
+    writeStackArtifacts(config, { watchPid: process.pid, ingestPid: 999999 });
+
+    const compact = getCompactStatusSnapshot(config);
+    const detailed = getStatusSnapshot(config);
+
+    assert.equal(compact.watcherProcessState, "error");
+    assert.ok(detailed.lines.some((line) => line.includes("Reconciled process state: partial")));
+    assert.ok(detailed.lines.some((line) => line.includes("Watcher process: error")));
   });
 });

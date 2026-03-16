@@ -1,6 +1,8 @@
 import { stopWatcherControl } from "../application/WatcherControl.js";
+import { loadConfig } from "../infrastructure/config/YamlConfigLoader.js";
 async function main() {
-    await stopWatcherControl();
+    const config = loadConfig("config.yaml");
+    await stopWatcherControl(config);
 }
 main().catch((err) => {
     const message = err instanceof Error ? err.message : String(err);

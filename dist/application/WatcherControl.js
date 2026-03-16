@@ -1,17 +1,23 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { readStatus } from "../infrastructure/status/RuntimeStatus.js";
 import { buildCompactStatusSnapshot, formatCompactStatusSnapshotLines, formatDashboardLines } from "./StatusSnapshot.js";
-const PID_FILE = ".autotranscribe2-pids.json";
+const LEGACY_PID_FILE = ".autotranscribe2-pids.json";
+const STACK_LOCK_FILENAME = "managed-stack.lock.json";
+const STARTUP_STABILIZE_MS = 400;
 const STOP_TIMEOUT_MS = 10000;
 const STOP_POLL_INTERVAL_MS = 250;
 const RECENT_JOB_LIMIT = 5;
-function getPidFilePath() {
-    return path.resolve(PID_FILE);
+function getLegacyPidFilePath() {
+    return path.resolve(LEGACY_PID_FILE);
 }
-function readPidFile() {
-    const pidFilePath = getPidFilePath();
+function getStackLockPath(config) {
+    return path.join(path.dirname(config.runtimeStatusPath), STACK_LOCK_FILENAME);
+}
+function readLegacyPidFile() {
+    const pidFilePath = getLegacyPidFilePath();
     if (!fs.existsSync(pidFilePath))
         return null;
     try {
@@ -22,12 +28,53 @@ function readPidFile() {
         return null;
     }
 }
-function writePidFile(pids) {
-    fs.writeFileSync(getPidFilePath(), JSON.stringify(pids, null, 2), { encoding: "utf8" });
+function writeLegacyPidFile(pids) {
+    fs.writeFileSync(getLegacyPidFilePath(), JSON.stringify(pids, null, 2), { encoding: "utf8" });
 }
-function removePidFile() {
+function removeLegacyPidFile() {
     try {
-        fs.unlinkSync(getPidFilePath());
+        fs.unlinkSync(getLegacyPidFilePath());
+    }
+    catch {
+        // ignore
+    }
+}
+function readStackLock(config) {
+    const lockPath = getStackLockPath(config);
+    if (!fs.existsSync(lockPath))
+        return null;
+    try {
+        const raw = fs.readFileSync(lockPath, "utf8");
+        return JSON.parse(raw);
+    }
+    catch {
+        return null;
+    }
+}
+function writeStackLock(config, stack) {
+    const lockPath = getStackLockPath(config);
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    fs.writeFileSync(lockPath, JSON.stringify(stack, null, 2), { encoding: "utf8" });
+}
+function tryCreateStackLock(config, stack) {
+    const lockPath = getStackLockPath(config);
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    try {
+        const handle = fs.openSync(lockPath, "wx");
+        fs.writeFileSync(handle, JSON.stringify(stack, null, 2), { encoding: "utf8" });
+        fs.closeSync(handle);
+        return true;
+    }
+    catch (error) {
+        if (error.code === "EEXIST") {
+            return false;
+        }
+        throw error;
+    }
+}
+function removeStackLock(config) {
+    try {
+        fs.unlinkSync(getStackLockPath(config));
     }
     catch {
         // ignore
@@ -46,6 +93,111 @@ function isPidRunning(pid) {
 }
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function pickPid(lockPid, legacyPid) {
+    return lockPid ?? legacyPid ?? null;
+}
+function runtimeStatusLooksAlive(config) {
+    const status = readStatus(config.runtimeStatusPath);
+    if (!status)
+        return false;
+    const updatedAt = new Date(status.updatedAt).getTime();
+    if (Number.isNaN(updatedAt))
+        return false;
+    return Date.now() - updatedAt <= 30000;
+}
+export function reconcileManagedWatcherStack(config) {
+    const lock = readStackLock(config);
+    const legacy = readLegacyPidFile();
+    const watchPid = pickPid(lock?.watchPid, legacy?.watchPid);
+    const ingestPid = pickPid(lock?.ingestPid, legacy?.ingestPid);
+    const watchRunning = isPidRunning(watchPid);
+    const ingestRunning = isPidRunning(ingestPid);
+    const hasLock = lock !== null;
+    const hasLegacyPidFile = legacy !== null;
+    const runtimeStatusFresh = runtimeStatusLooksAlive(config);
+    let reconciledProcessState;
+    let detail;
+    if (watchRunning && ingestRunning) {
+        reconciledProcessState = "running";
+        detail = "Both managed processes are alive.";
+    }
+    else if (!watchRunning && !ingestRunning && (hasLock || hasLegacyPidFile)) {
+        reconciledProcessState = "staleLock";
+        detail = "Lock or PID artifacts exist but managed processes are gone.";
+    }
+    else if (!watchRunning && !ingestRunning) {
+        reconciledProcessState = "stopped";
+        detail = runtimeStatusFresh
+            ? "No managed processes are alive; runtime status is only leftover recent activity."
+            : "No managed processes or stack artifacts are active.";
+    }
+    else if (watchRunning !== ingestRunning) {
+        reconciledProcessState = "partial";
+        detail = "Only one managed process is alive.";
+    }
+    else {
+        reconciledProcessState = "error";
+        detail = "Managed stack could not be reconciled safely.";
+    }
+    return {
+        reconciledProcessState,
+        watcherProcessState: mapReconciledStateToWatcherProcessState(reconciledProcessState),
+        watchPid,
+        ingestPid,
+        hasLock,
+        hasLegacyPidFile,
+        runtimeStatusFresh,
+        detail
+    };
+}
+function mapReconciledStateToWatcherProcessState(reconciledProcessState) {
+    switch (reconciledProcessState) {
+        case "running":
+            return "running";
+        case "stopped":
+        case "staleLock":
+            return "stopped";
+        case "partial":
+        case "inconsistent":
+        case "error":
+        default:
+            return "error";
+    }
+}
+function cleanupStackArtifacts(config) {
+    removeStackLock(config);
+    removeLegacyPidFile();
+}
+function createManagedStackRecord(config, watchPid, ingestPid) {
+    return {
+        watchPid,
+        ingestPid,
+        createdAt: new Date().toISOString(),
+        cwd: process.cwd(),
+        runtimeRoot: path.dirname(config.runtimeStatusPath),
+        hostname: os.hostname(),
+        lockVersion: 1
+    };
+}
+function persistManagedStack(config, watchPid, ingestPid) {
+    const stack = createManagedStackRecord(config, watchPid, ingestPid);
+    writeStackLock(config, stack);
+    writeLegacyPidFile({ watchPid, ingestPid });
+}
+function acquireManagedStackLock(config) {
+    const pendingStack = createManagedStackRecord(config, null, null);
+    if (tryCreateStackLock(config, pendingStack)) {
+        return;
+    }
+    const reconciliation = reconcileManagedWatcherStack(config);
+    if (reconciliation.reconciledProcessState === "staleLock") {
+        cleanupStackArtifacts(config);
+        if (tryCreateStackLock(config, pendingStack)) {
+            return;
+        }
+    }
+    throw new Error(`Managed watcher stack cannot start: ${reconciliation.detail}`);
 }
 export async function ensureOllamaRunning(config) {
     const title = config.title;
@@ -100,93 +252,114 @@ function attemptStartOllama() {
     }
 }
 export async function startWatcherControl(config) {
+    const reconciliation = reconcileManagedWatcherStack(config);
+    if (reconciliation.reconciledProcessState === "running") {
+        throw new Error("Managed watcher stack is already running.");
+    }
+    if (["partial", "inconsistent", "error"].includes(reconciliation.reconciledProcessState)) {
+        throw new Error(`Managed watcher stack is in an inconsistent state: ${reconciliation.detail}`);
+    }
+    if (reconciliation.reconciledProcessState === "staleLock") {
+        cleanupStackArtifacts(config);
+    }
+    acquireManagedStackLock(config);
     console.log("[WatcherControl] Starting AutoTranscribe2 watcher control (Ollama + ingest:jpr + watcher)...");
-    await ensureOllamaRunning(config);
-    const ingest = spawn(process.execPath, ["dist/cli/ingestJustPressRecord.js"], {
-        stdio: "ignore",
-        cwd: process.cwd(),
-        detached: true
-    });
-    ingest.unref();
-    const watch = spawn(process.execPath, ["dist/cli/index.js", "watch"], {
-        stdio: "ignore",
-        cwd: process.cwd(),
-        detached: true
-    });
-    watch.unref();
-    console.log("[WatcherControl] Started ingest:jpr (PID:", ingest.pid, "), watcher (PID:", watch.pid, ").");
-    if (ingest.pid && watch.pid) {
-        writePidFile({ ingestPid: ingest.pid, watchPid: watch.pid });
+    try {
+        await ensureOllamaRunning(config);
+        const ingest = spawn(process.execPath, ["dist/cli/ingestJustPressRecord.js"], {
+            stdio: "ignore",
+            cwd: process.cwd(),
+            detached: true
+        });
+        ingest.unref();
+        const watch = spawn(process.execPath, ["dist/cli/index.js", "watch"], {
+            stdio: "ignore",
+            cwd: process.cwd(),
+            detached: true
+        });
+        watch.unref();
+        if (!ingest.pid || !watch.pid) {
+            throw new Error("Failed to start managed watcher stack.");
+        }
+        persistManagedStack(config, watch.pid, ingest.pid);
+        await delay(STARTUP_STABILIZE_MS);
+        const started = reconcileManagedWatcherStack(config);
+        if (started.reconciledProcessState !== "running") {
+            cleanupStackArtifacts(config);
+            throw new Error(`Managed watcher stack failed to stabilize: ${started.detail}`);
+        }
+        console.log("[WatcherControl] Started ingest:jpr (PID:", ingest.pid, "), watcher (PID:", watch.pid, ").");
+    }
+    catch (error) {
+        cleanupStackArtifacts(config);
+        throw error;
     }
 }
-export async function stopWatcherControl() {
+export async function stopWatcherControl(config) {
     console.log("[WatcherControl] Stopping AutoTranscribe2 watcher control...");
-    const pids = readPidFile();
-    if (!pids) {
-        console.log("[WatcherControl] No PID file found; nothing to stop.");
+    const reconciliation = reconcileManagedWatcherStack(config);
+    if (reconciliation.reconciledProcessState === "staleLock") {
+        cleanupStackArtifacts(config);
+        console.log("[WatcherControl] Cleaned up stale stack artifacts.");
         return;
     }
-    const { ingestPid, watchPid } = pids;
-    if (ingestPid) {
+    const targets = [
+        { name: "ingest:jpr", pid: reconciliation.ingestPid },
+        { name: "watcher", pid: reconciliation.watchPid }
+    ];
+    for (const target of targets) {
+        if (!target.pid || !isPidRunning(target.pid))
+            continue;
         try {
-            process.kill(ingestPid, "SIGINT");
-            console.log("[WatcherControl] Sent SIGINT to ingest:jpr (PID:", ingestPid, ").");
+            process.kill(target.pid, "SIGINT");
+            console.log(`[WatcherControl] Sent SIGINT to ${target.name} (PID:`, target.pid, ").");
         }
         catch (err) {
             const message = err instanceof Error ? err.message : String(err);
-            console.error("[WatcherControl] Failed to signal ingest:jpr:", message);
+            console.error(`[WatcherControl] Failed to signal ${target.name}:`, message);
         }
     }
-    if (watchPid) {
-        try {
-            process.kill(watchPid, "SIGINT");
-            console.log("[WatcherControl] Sent SIGINT to watcher (PID:", watchPid, ").");
-        }
-        catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            console.error("[WatcherControl] Failed to signal watcher:", message);
-        }
-    }
-    removePidFile();
-}
-export async function restartWatcherControl(config) {
-    const pidsBeforeStop = readPidFile();
-    await stopWatcherControl();
-    const watchPid = pidsBeforeStop?.watchPid;
-    const ingestPid = pidsBeforeStop?.ingestPid;
     const deadline = Date.now() + STOP_TIMEOUT_MS;
-    while ((isPidRunning(watchPid) || isPidRunning(ingestPid)) && Date.now() < deadline) {
+    while ((isPidRunning(reconciliation.watchPid) || isPidRunning(reconciliation.ingestPid)) &&
+        Date.now() < deadline) {
         await delay(STOP_POLL_INTERVAL_MS);
     }
-    if (isPidRunning(watchPid) || isPidRunning(ingestPid)) {
-        throw new Error("WatcherControl did not stop cleanly before restart.");
+    cleanupStackArtifacts(config);
+    if (isPidRunning(reconciliation.watchPid) || isPidRunning(reconciliation.ingestPid)) {
+        throw new Error("Managed watcher stack did not stop cleanly.");
     }
+}
+export async function restartWatcherControl(config) {
+    await stopWatcherControl(config);
     await startWatcherControl(config);
 }
 export function getStatusSnapshot(config) {
     const status = readStatus(config.runtimeStatusPath);
-    const pids = readPidFile();
-    const watcherProcessState = isPidRunning(pids?.watchPid) ? "running" : "stopped";
+    const latestTranscript = getLatestTranscript(config);
+    const reconciliation = reconcileManagedWatcherStack(config);
     const dashboard = formatDashboardLines(status, config.runtimeStatusPath);
     const lines = [
         "AutoTranscribe2 WatcherControl",
         "",
-        `Watcher process: ${watcherProcessState}`,
+        `Watcher process: ${reconciliation.watcherProcessState}`,
+        `Reconciled process state: ${reconciliation.reconciledProcessState}`,
+        `Latest transcript: ${latestTranscript ? path.basename(latestTranscript.transcriptPath) : "-"}`,
         ...dashboard.lines.filter((line) => line !== "AutoTranscribe2 status" && line !== "Press Ctrl+C to exit.")
     ];
     return {
-        watcherProcessState,
+        watcherProcessState: reconciliation.watcherProcessState,
         runtimeActivityState: status?.runtimeActivityState ?? null,
         statusFreshness: dashboard.statusFreshness,
+        latestTranscript: latestTranscript ? path.basename(latestTranscript.transcriptPath) : null,
+        reconciledProcessState: reconciliation.reconciledProcessState,
         lines
     };
 }
 export function getCompactStatusSnapshot(config) {
     const status = readStatus(config.runtimeStatusPath);
     const latestTranscript = getLatestTranscript(config);
-    const pids = readPidFile();
-    const watcherProcessState = isPidRunning(pids?.watchPid) ? "running" : "stopped";
-    return buildCompactStatusSnapshot(watcherProcessState, status, latestTranscript);
+    const reconciliation = reconcileManagedWatcherStack(config);
+    return buildCompactStatusSnapshot(reconciliation.watcherProcessState, status, latestTranscript);
 }
 export function getCompactStatusSnapshotLines(config) {
     return formatCompactStatusSnapshotLines(getCompactStatusSnapshot(config));

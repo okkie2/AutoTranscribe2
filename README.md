@@ -66,6 +66,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
 - **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point with a compact `StatusSnapshot`, manual refresh, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
+- **Single-instance runtime guard:** menu control, `npm run start:all`, and launchd autostart all respect the same `ManagedWatcherStack` lock, so duplicate watcher stacks are refused instead of processing the same file multiple times.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with runtime activity, freshness, queue length, current job, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
 - **MLX Whisper** on Apple Silicon; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
@@ -94,9 +95,9 @@ When the menu is shown or refreshed, a compact `StatusSnapshot` stays visible ab
 Menu actions:
 
 - **Show Watcher Status** – shows the detailed static status view from runtime status plus watcher process state.
-- **Start Watcher** – starts the current watcher control flow (`ingest:jpr` + watcher, with Ollama check when configured).
-- **Stop Watcher** – stops the current watcher control flow using the PID file.
-- **Restart Watcher** – stops the watcher control flow, verifies it stopped, then starts it again.
+- **Start Watcher** – starts the managed watcher stack (`ingest:jpr` + watcher, with Ollama check when configured) only if no valid stack lock already owns runtime control.
+- **Stop Watcher** – stops only the managed watcher stack and cleans lock/PID artifacts when it shuts down cleanly.
+- **Restart Watcher** – stops the managed watcher stack, verifies ownership cleanup, then starts a fresh stack.
 - **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
 - **Open Latest Transcript** – opens the `LatestTranscript` in the default macOS viewer.
 - **Exit** – leaves the menu.
@@ -117,6 +118,8 @@ npm run start:all
 From then on, the app starts automatically when you log in. To stop it: `npm run stop:all`. To disable autostart, unload the launch agent (see [docs/usage.md](docs/usage.md)).
 
 - **Status monitor:** In another terminal, run `npm run status` for the live-updating dashboard. Real-time monitoring belongs there; the menu stays static by design.
+
+Autostart, the menu, and `start:all` all go through the same runtime ownership guard. If one managed stack is already running for this repo/runtime root, another start attempt is refused instead of creating duplicate watcher processes.
 
 See [docs/usage.md](docs/usage.md) for full commands and autostart details.
 

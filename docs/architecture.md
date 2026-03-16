@@ -33,15 +33,15 @@ Core concepts with no infrastructure dependency: `AudioFile`, `TranscriptionJob`
 
 ### Application
 
-High-level orchestration: `TranscriptionService` (transcribe, title, write transcript), `JobWorker` (pull jobs from queue, call service), and `WatcherControl` (start/stop/restart/status, compact `StatusSnapshot`, recent `TranscriptionJob`s, latest transcript lookup). `StatusSnapshot` now separates `WatcherProcessState`, `RuntimeActivityState`, and `StatusFreshness`. Lives under `src/application/`.
+High-level orchestration: `TranscriptionService` (transcribe, title, write transcript), `JobWorker` (pull jobs from queue, call service), and `WatcherControl` (start/stop/restart/status, compact `StatusSnapshot`, recent `TranscriptionJob`s, latest transcript lookup). `WatcherControl` now owns the single-instance `ManagedWatcherStack` guard and central reconciliation of `StackLock`, legacy PID file, live process checks, and runtime ownership. `StatusSnapshot` separates `WatcherProcessState`, `RuntimeActivityState`, and `StatusFreshness`, while process state comes from the reconciled stack result. Lives under `src/application/`.
 
 ### Infrastructure
 
-Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (`runtimeActivityState`, queue length, current file, last error, freshness derived from `updatedAt`). Lives under `src/infrastructure/`.
+Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (`runtimeActivityState`, queue length, current file, last error, freshness derived from `updatedAt`). Runtime ownership artifacts live alongside this status data: `runtime/managed-stack.lock.json` establishes `ManagedWatcherStack` ownership, while `.autotranscribe2-pids.json` remains as a legacy compatibility artifact. Lives under `src/infrastructure/`.
 
 ### CLI
 
-Entry point and commands: `watch` (automatic transcription) and `menu` (simple operational entry point), wired to application services. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
+Entry point and commands: `watch` (automatic transcription) and `menu` (simple operational entry point), wired to application services. `menu`, `startAll`, `stopAll`, and launchd autostart all share the same `WatcherControl` single-instance path, so duplicate stacks are refused centrally rather than by per-command heuristics. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
 
 ### Python backend
 

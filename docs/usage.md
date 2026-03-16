@@ -23,11 +23,12 @@ This opens a lightweight interactive menu with exactly these actions:
 - A compact `StatusSnapshot` is always visible above the menu whenever it is shown or refreshed.
 - The compact snapshot shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, current job, and the `LatestTranscript` filename when available.
 - The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
+- Menu actions, `start:all`, and autostart all use the same single-instance `ManagedWatcherStack` guard. If a valid stack lock already owns runtime control, start is refused instead of creating duplicate watcher stacks.
 
-- **Show Watcher Status** – shows the fuller static `StatusSnapshot` based on `runtime/status.json` and the current watcher PID state.
-- **Start Watcher** – starts the existing watcher control flow (`ingest:jpr` + watcher, including the Ollama check when configured).
-- **Stop Watcher** – stops that watcher control flow using `.autotranscribe2-pids.json`.
-- **Restart Watcher** – stops the watcher control flow, waits until it has stopped cleanly, then starts it again.
+- **Show Watcher Status** – shows the fuller live status view based on `runtime/status.json`, the reconciled `ManagedWatcherStack`, and the current `LatestTranscript`.
+- **Start Watcher** – starts the managed watcher stack (`ingest:jpr` + watcher, including the Ollama check when configured) only when the stack lock can be acquired safely.
+- **Stop Watcher** – stops only the managed watcher stack, then cleans the stack lock and legacy PID artifacts.
+- **Restart Watcher** – stops the managed watcher stack, verifies ownership cleanup, then starts it again.
 - **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
 - **Open Latest Transcript** – finds the `LatestTranscript` in `watch.output_directory` and opens it with the default macOS viewer.
 - **Exit** – closes the menu.
@@ -57,6 +58,7 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 - **Transcripts:** Each transcript is written to `watch.output_directory` (default `~/Documents/AutoTranscribe2/transcripts`) as `{timestamp}_{slug}.md` or `{timestamp}_Untitled.md`.
 - **Logs:** Console and file logs go to the path in `logging.log_file` (default `~/Documents/AutoTranscribe2/logs/autotranscribe.log`).
 - **Runtime status:** When the runtime is active, it writes `runtime/status.json` (next to `config.yaml`) with `runtimeActivityState`, queue length, current file, last error, and `updatedAt`. Freshness is derived separately from `updatedAt`.
+- **Stack ownership:** `runtime/managed-stack.lock.json` is the `StackLock` for the managed watcher stack. AutoTranscribe2 reconciles that lock with live PIDs and the legacy `.autotranscribe2-pids.json` file before starting, stopping, or reporting process state.
 
 ## Live status dashboard
 
@@ -89,11 +91,13 @@ npm run autostart:install
 
 This installs a launchd plist that runs `npm run start:all` at login. Logs go to `~/Library/Logs/autotranscribe2.out.log` and `autotranscribe2.err.log`.
 
+Autostart uses the same single-instance guard as the menu and `start:all`. If a valid managed stack already owns runtime control, launchd-triggered startup is refused instead of creating duplicates.
+
 ### start:all and stop:all
 
-- **start:all:** Builds the project; if title provider is `ollama`, tries to start Ollama; spawns `ingest:jpr` and `autotranscribe watch`; writes child PIDs to `.autotranscribe2-pids.json`.
+- **start:all:** Loads config, acquires the `StackLock`, checks Ollama when needed, starts `ingest:jpr` and `autotranscribe watch`, then records managed PIDs in both `runtime/managed-stack.lock.json` and the legacy `.autotranscribe2-pids.json`.
 - **ingest:jpr:** Polls the configured Just Press Record iCloud folder every 3 seconds, waits for each `.m4a` file to stabilize, then copies it into the recordings folder and removes the source file.
-- **stop:all:** Sends `SIGINT` to those processes using the PID file, then removes the file.
+- **stop:all:** Reconciles the managed watcher stack, sends `SIGINT` only to the managed processes it owns, and then removes lock/PID artifacts.
 - **menu:** Reuses the same watcher control path for start/stop/restart, plus shows a static `StatusSnapshot`, recent `TranscriptionJob`s, and the `LatestTranscript`.
 
 ---
