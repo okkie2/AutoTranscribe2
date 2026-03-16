@@ -33,7 +33,7 @@ Core concepts with no infrastructure dependency: `AudioFile`, `TranscriptionJob`
 
 ### Application
 
-High-level orchestration: `TranscriptionService` (transcribe, title, write transcript) and `JobWorker` (pull jobs from queue, call service). Lives under `src/application/`.
+High-level orchestration: `TranscriptionService` (transcribe, title, write transcript), `JobWorker` (pull jobs from queue, call service), and `WatcherControl` (start/stop/restart/status, compact `StatusSnapshot`, recent `TranscriptionJob`s, latest transcript lookup). Lives under `src/application/`.
 
 ### Infrastructure
 
@@ -41,7 +41,7 @@ Config, logging, backend adapter, watcher, runtime status: YAML config loader, `
 
 ### CLI
 
-Entry point and command: `watch` (automatic transcription), wired to application services. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
+Entry point and commands: `watch` (automatic transcription) and `menu` (simple operational entry point), wired to application services. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
 
 ### Python backend
 
@@ -51,8 +51,8 @@ Entry point and command: `watch` (automatic transcription), wired to application
 
 - **`src/domain/`** – AudioFile, TranscriptionJob, TranscriptionJobState, Transcript, TranscriptionJobQueue, WatchConfiguration
 - **`src/infrastructure/`** – config (YAML), logging, backend (MLX Whisper), watcher (FileSystemPoller), status (RuntimeStatus → `runtime/status.json`)
-- **`src/application/`** – TranscriptionService, JobWorker
-- **`src/cli/`** – CLI entry (watch), status viewer, startAll, stopAll, ingest, titlePreview
+- **`src/application/`** – TranscriptionService, JobWorker, WatcherControl
+- **`src/cli/`** – CLI entry (`watch`, `menu`), status viewer, startAll, stopAll, ingest, titlePreview
 - **`py-backend/`** – MLX Whisper script; `timestamp_preview.py` for one-off formatted preview
 - **`config.yaml`** – main configuration
 - **`UbiquitousLanguageGlossary.md`** – domain glossary

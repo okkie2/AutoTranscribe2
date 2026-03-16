@@ -8,6 +8,7 @@ import { FileSystemPoller } from "../infrastructure/watcher/FileSystemPoller.js"
 import { JobWorker } from "../application/JobWorker.js";
 import { createTitleSuggester } from "../infrastructure/title/TitleSuggesterFactory.js";
 import { createStatusUpdater, writeStatus } from "../infrastructure/status/RuntimeStatus.js";
+import { runMenu } from "./menu.js";
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -62,6 +63,10 @@ async function main() {
         logger.info("Watcher stopped cleanly.");
         process.exit(0);
     }
+    else if (command === "menu") {
+        await runMenu(config);
+        process.exit(0);
+    }
     else {
         console.error(`Unknown command: ${command}`);
         printHelp();
@@ -75,6 +80,10 @@ Usage:
   autotranscribe watch
       Start the long-running watcher that polls configured directories
       and transcribes new audio files automatically.
+
+  autotranscribe menu
+      Open the simple operational menu for watcher control, recent
+      TranscriptionJobs, and the LatestTranscript.
 `);
 }
 main().catch((err) => {

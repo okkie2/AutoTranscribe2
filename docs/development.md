@@ -29,7 +29,7 @@ Integration testing for the automatic (watch) flow is manual: run the watcher, a
 
 ## Testing commands
 
-- **Unit tests:** `npm test` – runs build and the TranscriptTitleFormatter (and other) unit tests.
+- **Unit tests:** `npm test` – runs build and the TranscriptTitleFormatter, status, and WatcherControl unit tests.
 - **Live status:** When the watcher is running, `npm run status` shows a live-updating terminal dashboard (refreshes every 500 ms; press Ctrl+C to exit). Data is read from `runtime/status.json`.
 
 ## TODO / roadmap
@@ -59,7 +59,7 @@ The `docs/` folder contains wiki-ready pages (Home, Installation, Configuration,
 
 ## Ubiquitous language / glossary
 
-See `UbiquitousLanguageGlossary.md` in the repo root. Core terms (AudioFile, TranscriptionJob, Transcript, TranscriptionBackend, Watcher, Poller, etc.) are used consistently in code, tests, and documentation.
+See `UbiquitousLanguageGlossary.md` in the repo root. Core terms (AudioFile, TranscriptionJob, Transcript, TranscriptionBackend, Watcher, WatcherControl, WatcherProcessState, StatusSnapshot, LatestTranscript, Poller, etc.) are used consistently in code, tests, and documentation.
 
 ---
 

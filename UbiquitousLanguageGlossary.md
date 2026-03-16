@@ -24,6 +24,14 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **Watcher**: The long-running component that periodically scans configured directories (using a `Poller` in the MVP) to discover new `AudioFile` instances and submit corresponding `TranscriptionJob`s into the `TranscriptionJobQueue`.
 
+- **WatcherControl**: The operational control surface for the `Watcher`. It starts, stops, restarts, and reports on the watcher process using the existing runtime files and CLI scripts.
+
+- **StatusSnapshot**: A concise read model for showing the current watcher state to an operator. Derived from runtime status data plus watcher process information, and used for human-readable status views.
+
+- **WatcherProcessState**: The operator-facing state of the watcher process itself. For the current CLI this is `running` or `stopped`, distinct from runtime activity states such as `idle`, `processing`, or `error`.
+
+- **LatestTranscript**: The most recently written `Transcript` in the configured transcript output directory. Used by operational flows that need to open or inspect the newest result quickly.
+
 - **Poller**: The concrete mechanism used by the `Watcher` to detect file system changes via periodic scans (e.g. every N seconds). In later versions it may be replaced or augmented by real filesystem events without changing domain logic.
 
 - **TranscriptionSession** (optional concept for later): A logical grouping of related `TranscriptionJob`s (e.g. all recordings from a single meeting or day). Not required for MVP but useful for future summarisation or reporting features.
@@ -34,6 +42,7 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **CLICommand**: A user-invoked command exposed by the CLI interface. For MVP:
   - `autotranscribe watch`: Starts the long-running watcher process that submits `TranscriptionJob`s as new `AudioFile`s appear and transcribes them automatically.
+  - `autotranscribe menu`: Opens the simple operational menu for `WatcherControl`, recent `TranscriptionJob` visibility, and opening the `LatestTranscript`.
 
 - **LogEntry**: A single structured message produced by the logging system, including at least a timestamp, severity (e.g. info, warn, error), and human-readable text. For MVP, log entries are written both to the console and to a rolling or append-only logfile.
 
@@ -44,4 +53,3 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 - **TranscriptArtifact**: Avoid this term for MVP. Use `Transcript` instead for the persistent text output.
 
 - **JobStatus / JobState (generic)**: For now, use `TranscriptionJobState` to keep the concept clearly scoped to transcription. If future non-transcription jobs (e.g. copying from a cloud folder, distributing transcripts) are introduced, a more generic `Job` / `JobState` model can be added in a separate bounded context or module.
-

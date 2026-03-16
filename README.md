@@ -65,6 +65,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 ## Key features
 
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
+- **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point for status, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with state (idle/processing/error), queue length, current file, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
 - **MLX Whisper** on Apple Silicon; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
@@ -82,7 +83,25 @@ npm install
 
 Then choose how you want to run the app:
 
-**Try quickly** — Run in the foreground (good for a first test). The app stops when you close the terminal or press Ctrl+C.
+**Try quickly** — Use the simple operational entry point first.
+
+```bash
+autotranscribe menu
+```
+
+When the menu is shown or refreshed, a compact `StatusSnapshot` stays visible above the menu and shows the current `WatcherProcessState`, queue information when available, and the `LatestTranscript` filename when available.
+
+Menu actions:
+
+- **Show Watcher Status** – shows the detailed live `StatusSnapshot` from runtime status plus watcher process state.
+- **Start Watcher** – starts the current watcher control flow (`ingest:jpr` + watcher, with Ollama check when configured).
+- **Stop Watcher** – stops the current watcher control flow using the PID file.
+- **Restart Watcher** – stops the watcher control flow, verifies it stopped, then starts it again.
+- **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
+- **Open Latest Transcript** – opens the `LatestTranscript` in the default macOS viewer.
+- **Exit** – leaves the menu.
+
+You can still run directly in the foreground if you want the existing command flow. The app stops when you close the terminal or press Ctrl+C.
 
 ```bash
 npm run start:all
@@ -98,6 +117,12 @@ From then on, the app starts automatically when you log in. To stop it: `npm run
 - **Status monitor:** In another terminal, run `npm run status` for a live-updating dashboard (refreshes every 500 ms; shows state, queue, current file). Press Ctrl+C to exit.
 
 See [docs/usage.md](docs/usage.md) for full commands and autostart details.
+
+If `autotranscribe` is not yet installed on your `PATH`, the root-local fallback is:
+
+```bash
+npm run menu
+```
 
 ---
 

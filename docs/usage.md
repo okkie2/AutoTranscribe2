@@ -12,6 +12,27 @@ Or without global link: `node dist/cli/index.js watch`.
 - Each new audio file is transcribed automatically; MLX Whisper runs, a title is generated (Ollama/heuristic/none), and a titled `.md` is written (e.g. `2025-12-03_14-03-14_kennismaking-met-sabine.md`) with a prettified body and the original transcript at the bottom.
 - Stop with `Ctrl+C`.
 
+## Menu (simple operational entry point)
+
+```bash
+autotranscribe menu
+```
+
+This opens a lightweight interactive menu with exactly these actions:
+
+- A compact `StatusSnapshot` is always visible above the menu whenever it is shown or refreshed.
+- The compact snapshot shows the current `WatcherProcessState` and, when available, queue information and the `LatestTranscript` filename.
+
+- **Show Watcher Status** – shows the fuller live `StatusSnapshot` based on `runtime/status.json` and the current watcher PID state.
+- **Start Watcher** – starts the existing watcher control flow (`ingest:jpr` + watcher, including the Ollama check when configured).
+- **Stop Watcher** – stops that watcher control flow using `.autotranscribe2-pids.json`.
+- **Restart Watcher** – stops the watcher control flow, waits until it has stopped cleanly, then starts it again.
+- **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
+- **Open Latest Transcript** – finds the `LatestTranscript` in `watch.output_directory` and opens it with the default macOS viewer.
+- **Exit** – closes the menu.
+
+From the repo root, `npm run menu` is the local fallback if `autotranscribe` is not yet linked onto your `PATH`.
+
 ## Preview formatted output (no Node pipeline)
 
 To get only the formatted transcript for a single file (e.g. to experiment with paragraph length):
@@ -72,6 +93,7 @@ This installs a launchd plist that runs `npm run start:all` at login. Logs go to
 - **start:all:** Builds the project; if title provider is `ollama`, tries to start Ollama; spawns `ingest:jpr` and `autotranscribe watch`; writes child PIDs to `.autotranscribe2-pids.json`.
 - **ingest:jpr:** Polls the configured Just Press Record iCloud folder every 3 seconds, waits for each `.m4a` file to stabilize, then copies it into the recordings folder and removes the source file.
 - **stop:all:** Sends `SIGINT` to those processes using the PID file, then removes the file.
+- **menu:** Reuses the same watcher control path for start/stop/restart, plus shows `StatusSnapshot`, recent `TranscriptionJob`s, and the `LatestTranscript`.
 
 ---
 

@@ -6,6 +6,7 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 
 ## Already implemented
 
+- **Operational menu** – `autotranscribe menu` opens a simple interactive `WatcherControl` menu with an always-visible compact `StatusSnapshot`, watcher status, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
 - **iCloud Just Press Record ingestion** – `npm run ingest:jpr` watches the JPR iCloud folder, flattens dated subfolders into the recordings directory, normalises filenames (`YYYY-MM-DD_HH-MM-SS_...`), optional cleanup after copy.
 - **Readable transcript format** – Paragraphs with timestamps and labels; original transcript at bottom. Preview script: `python py-backend/timestamp_preview.py <file> --language nl`.
 - **Unit tests** – `npm test` runs build and unit tests; integration for the watch flow is manual (run watcher, add file, check transcript).
