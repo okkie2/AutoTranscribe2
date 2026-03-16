@@ -102,13 +102,13 @@ function attemptStartOllama() {
 export async function startWatcherControl(config) {
     console.log("[WatcherControl] Starting AutoTranscribe2 watcher control (Ollama + ingest:jpr + watcher)...");
     await ensureOllamaRunning(config);
-    const ingest = spawn("npm", ["run", "ingest:jpr"], {
+    const ingest = spawn(process.execPath, ["dist/cli/ingestJustPressRecord.js"], {
         stdio: "ignore",
         cwd: process.cwd(),
         detached: true
     });
     ingest.unref();
-    const watch = spawn("node", ["dist/cli/index.js", "watch"], {
+    const watch = spawn(process.execPath, ["dist/cli/index.js", "watch"], {
         stdio: "ignore",
         cwd: process.cwd(),
         detached: true
