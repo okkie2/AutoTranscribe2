@@ -110,6 +110,8 @@ See [docs/usage.md](docs/usage.md) for full commands and autostart details.
 | **Python 3**       | Venv with `pip install mlx-whisper`. |
 | **Ollama**         | Optional; for title generation. |
 
+**Transcription stack (Whisper):** The app uses [MLX Whisper](https://github.com/ml-explore/mlx-whisper) (Python package **mlx-whisper**, tested with **0.4.3**) with the **whisper-large-v3-turbo** model from `mlx-community/whisper-large-v3-turbo`. Install with `pip install mlx-whisper`; check the installed version with `./.venv/bin/python -m pip show mlx-whisper`.
+
 ---
 
 ## Documentation
@@ -140,3 +142,10 @@ This project supports **automatic transcription only**. The previous single-file
 - **Unit tests:** `npm test` (runs build + unit tests). Used by the pre-push hook and CI.
 - **Integration:** The automatic (watch) flow can be tested manually: start the watcher, add an audio file to the watched directory, and confirm a transcript appears. Not run in CI (requires Apple Silicon / MLX).
 - **Pre-push hook:** After cloning, run `npm run install-hooks` once. Before each push, `npm run build` and `npm test` run automatically; if they fail, the push is blocked. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full commit/push workflow and how to fix or bypass when tests fail.
+
+---
+
+## License and attribution
+
+- [LICENSE.md](LICENSE.md)
+- [ATTRIBUTIONS.md](ATTRIBUTIONS.md)
