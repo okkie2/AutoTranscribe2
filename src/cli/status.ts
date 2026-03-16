@@ -4,21 +4,18 @@ import path from "node:path";
 import chalk from "chalk";
 import { loadConfig } from "../infrastructure/config/YamlConfigLoader.js";
 import { getDefaultStatusPath, readStatus } from "../infrastructure/status/RuntimeStatus.js";
-import { formatDashboardLines, type EffectiveState } from "./StatusDashboard.js";
+import { formatDashboardLines, type StatusFreshness } from "./StatusDashboard.js";
 
 const REFRESH_INTERVAL_MS = 500;
 
-function colorizeState(state: EffectiveState | "none"): (s: string) => string {
-  switch (state) {
-    case "idle":
+function colorizeFreshness(statusFreshness: StatusFreshness): (s: string) => string {
+  switch (statusFreshness) {
+    case "fresh":
       return chalk.green;
-    case "processing":
-      return chalk.yellow;
-    case "error":
-      return chalk.red;
     case "stale":
-    case "none":
       return chalk.dim;
+    case "missing":
+      return chalk.red;
     default:
       return chalk.dim;
   }
@@ -26,16 +23,16 @@ function colorizeState(state: EffectiveState | "none"): (s: string) => string {
 
 function renderDashboard(statusPath: string): void {
   const status = readStatus(statusPath);
-  const { lines, effectiveState } = formatDashboardLines(status, statusPath);
-  const color = colorizeState(effectiveState);
+  const { lines, statusFreshness } = formatDashboardLines(status, statusPath);
+  const color = colorizeFreshness(statusFreshness);
 
   // Clear and redraw in place
   console.clear();
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (i === 2 && line.startsWith("State:")) {
-      const value = line.replace(/^State:\s*/, "");
-      console.log("State: " + color(value));
+    if (line.startsWith("Freshness: ")) {
+      const value = line.replace(/^Freshness:\s*/, "");
+      console.log("Freshness: " + color(value));
     } else {
       console.log(line);
     }

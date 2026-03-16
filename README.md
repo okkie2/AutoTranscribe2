@@ -65,8 +65,8 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 ## Key features
 
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
-- **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point for status, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
-- **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with state (idle/processing/error), queue length, current file, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
+- **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point with a compact `StatusSnapshot`, manual refresh, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
+- **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with runtime activity, freshness, queue length, current job, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
 - **MLX Whisper** on Apple Silicon; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
 - **JPR ingestion** via lightweight polling of the iCloud folder, plus **unified start/stop** (`npm run start:all` / `stop:all`)
@@ -89,17 +89,19 @@ Then choose how you want to run the app:
 autotranscribe menu
 ```
 
-When the menu is shown or refreshed, a compact `StatusSnapshot` stays visible above the menu and shows the current `WatcherProcessState`, queue information when available, and the `LatestTranscript` filename when available.
+When the menu is shown or refreshed, a compact `StatusSnapshot` stays visible above the menu and shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, current job, and the `LatestTranscript` filename.
 
 Menu actions:
 
-- **Show Watcher Status** – shows the detailed live `StatusSnapshot` from runtime status plus watcher process state.
+- **Show Watcher Status** – shows the detailed static status view from runtime status plus watcher process state.
 - **Start Watcher** – starts the current watcher control flow (`ingest:jpr` + watcher, with Ollama check when configured).
 - **Stop Watcher** – stops the current watcher control flow using the PID file.
 - **Restart Watcher** – stops the watcher control flow, verifies it stopped, then starts it again.
 - **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
 - **Open Latest Transcript** – opens the `LatestTranscript` in the default macOS viewer.
 - **Exit** – leaves the menu.
+
+The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
 
 You can still run directly in the foreground if you want the existing command flow. The app stops when you close the terminal or press Ctrl+C.
 
@@ -114,7 +116,7 @@ npm run start:all
 
 From then on, the app starts automatically when you log in. To stop it: `npm run stop:all`. To disable autostart, unload the launch agent (see [docs/usage.md](docs/usage.md)).
 
-- **Status monitor:** In another terminal, run `npm run status` for a live-updating dashboard (refreshes every 500 ms; shows state, queue, current file). Press Ctrl+C to exit.
+- **Status monitor:** In another terminal, run `npm run status` for the live-updating dashboard. Real-time monitoring belongs there; the menu stays static by design.
 
 See [docs/usage.md](docs/usage.md) for full commands and autostart details.
 

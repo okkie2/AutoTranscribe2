@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { readStatus } from "../infrastructure/status/RuntimeStatus.js";
-import { formatDashboardLines, getEffectiveState } from "./StatusSnapshot.js";
+import { buildCompactStatusSnapshot, formatCompactStatusSnapshotLines, formatDashboardLines } from "./StatusSnapshot.js";
 const PID_FILE = ".autotranscribe2-pids.json";
 const STOP_TIMEOUT_MS = 10000;
 const STOP_POLL_INTERVAL_MS = 250;
@@ -168,31 +168,28 @@ export function getStatusSnapshot(config) {
     const pids = readPidFile();
     const watcherProcessState = isPidRunning(pids?.watchPid) ? "running" : "stopped";
     const dashboard = formatDashboardLines(status, config.runtimeStatusPath);
-    const statusLinePrefix = "Watcher process: ";
     const lines = [
         "AutoTranscribe2 WatcherControl",
         "",
-        `${statusLinePrefix}${watcherProcessState}`,
+        `Watcher process: ${watcherProcessState}`,
         ...dashboard.lines.filter((line) => line !== "AutoTranscribe2 status" && line !== "Press Ctrl+C to exit.")
     ];
     return {
         watcherProcessState,
-        effectiveState: getEffectiveState(status),
+        runtimeActivityState: status?.runtimeActivityState ?? null,
+        statusFreshness: dashboard.statusFreshness,
         lines
     };
 }
 export function getCompactStatusSnapshot(config) {
-    const snapshot = getStatusSnapshot(config);
     const status = readStatus(config.runtimeStatusPath);
     const latestTranscript = getLatestTranscript(config);
-    return [
-        "AutoTranscribe2",
-        "",
-        `Watcher: ${snapshot.watcherProcessState.toUpperCase()}`,
-        `Queue: ${status ? `${status.queueLength} jobs` : "-"}`,
-        `LatestTranscript: ${latestTranscript ? path.basename(latestTranscript.transcriptPath) : "-"}`,
-        ""
-    ];
+    const pids = readPidFile();
+    const watcherProcessState = isPidRunning(pids?.watchPid) ? "running" : "stopped";
+    return buildCompactStatusSnapshot(watcherProcessState, status, latestTranscript);
+}
+export function getCompactStatusSnapshotLines(config) {
+    return formatCompactStatusSnapshotLines(getCompactStatusSnapshot(config));
 }
 function parseLogMeta(line) {
     const jsonStart = line.indexOf("{");

@@ -1,13 +1,5 @@
+import path from "node:path";
 const STALE_THRESHOLD_MS = 30000;
-export function getEffectiveState(status, thresholdMs = STALE_THRESHOLD_MS) {
-    if (!status)
-        return "none";
-    const updated = new Date(status.updatedAt).getTime();
-    if (Number.isNaN(updated) || Date.now() - updated > thresholdMs) {
-        return "stale";
-    }
-    return status.state;
-}
 function fallback(value, def = "-") {
     if (value === null || value === undefined)
         return def;
@@ -15,17 +7,27 @@ function fallback(value, def = "-") {
         return def;
     return String(value);
 }
+export function getStatusFreshness(status, thresholdMs = STALE_THRESHOLD_MS) {
+    if (!status)
+        return "missing";
+    const updated = new Date(status.updatedAt).getTime();
+    if (Number.isNaN(updated) || Date.now() - updated > thresholdMs) {
+        return "stale";
+    }
+    return "fresh";
+}
 export function formatDashboardLines(status, statusPath) {
-    const effectiveState = getEffectiveState(status);
+    const statusFreshness = getStatusFreshness(status);
     if (!status) {
         return {
-            effectiveState: "none",
+            statusFreshness: "missing",
             lines: [
                 "AutoTranscribe2 status",
                 "",
-                "State: -",
+                "Activity: -",
+                "Freshness: missing",
                 "Queue length: -",
-                "Current file: -",
+                "Current job: -",
                 "Last update: -",
                 "Last error: -",
                 "",
@@ -36,7 +38,6 @@ export function formatDashboardLines(status, statusPath) {
             ]
         };
     }
-    const stateLabel = effectiveState === "stale" ? "stale" : status.state;
     let updatedLabel = "-";
     try {
         const d = new Date(status.updatedAt);
@@ -51,14 +52,38 @@ export function formatDashboardLines(status, statusPath) {
         lines: [
             "AutoTranscribe2 status",
             "",
-            `State: ${stateLabel}`,
+            `Activity: ${fallback(status.runtimeActivityState)}`,
+            `Freshness: ${statusFreshness}`,
             `Queue length: ${fallback(status.queueLength, "0")}`,
-            `Current file: ${fallback(status.currentFile)}`,
+            `Current job: ${fallback(status.currentFile)}`,
             `Last update: ${updatedLabel}`,
             `Last error: ${fallback(status.lastError)}`,
             "",
             "Press Ctrl+C to exit."
         ],
-        effectiveState
+        statusFreshness
     };
+}
+export function buildCompactStatusSnapshot(watcherProcessState, status, latestTranscript) {
+    return {
+        watcherProcessState,
+        runtimeActivityState: status?.runtimeActivityState ?? null,
+        statusFreshness: getStatusFreshness(status),
+        queueLength: status?.queueLength ?? null,
+        currentJob: status?.currentFile ? path.basename(status.currentFile) : null,
+        latestTranscript: latestTranscript ? path.basename(latestTranscript.transcriptPath) : null
+    };
+}
+export function formatCompactStatusSnapshotLines(snapshot) {
+    return [
+        "AutoTranscribe2",
+        "",
+        `Watcher: ${snapshot.watcherProcessState.toUpperCase()}`,
+        `Activity: ${fallback(snapshot.runtimeActivityState)}`,
+        `Freshness: ${snapshot.statusFreshness}`,
+        `Queue: ${snapshot.queueLength !== null ? `${snapshot.queueLength} jobs` : "-"}`,
+        `CurrentJob: ${fallback(snapshot.currentJob)}`,
+        `LatestTranscript: ${fallback(snapshot.latestTranscript)}`,
+        ""
+    ];
 }

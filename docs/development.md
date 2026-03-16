@@ -59,7 +59,7 @@ The `docs/` folder contains wiki-ready pages (Home, Installation, Configuration,
 
 ## Ubiquitous language / glossary
 
-See `UbiquitousLanguageGlossary.md` in the repo root. Core terms (AudioFile, TranscriptionJob, Transcript, TranscriptionBackend, Watcher, WatcherControl, WatcherProcessState, StatusSnapshot, LatestTranscript, Poller, etc.) are used consistently in code, tests, and documentation.
+See `UbiquitousLanguageGlossary.md` in the repo root and `docs/ubiquitous-language.md`. Core terms (AudioFile, TranscriptionJob, Transcript, TranscriptionBackend, Watcher, WatcherControl, WatcherProcessState, RuntimeActivityState, StatusFreshness, StatusSnapshot, LatestTranscript, Poller, etc.) are used consistently in code, tests, and documentation.
 
 ---
 

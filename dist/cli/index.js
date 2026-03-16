@@ -7,7 +7,7 @@ import { TranscriptionJobQueue } from "../domain/TranscriptionJobQueue.js";
 import { FileSystemPoller } from "../infrastructure/watcher/FileSystemPoller.js";
 import { JobWorker } from "../application/JobWorker.js";
 import { createTitleSuggester } from "../infrastructure/title/TitleSuggesterFactory.js";
-import { createStatusUpdater, writeStatus } from "../infrastructure/status/RuntimeStatus.js";
+import { createStatusUpdater, readStatus, writeStatus } from "../infrastructure/status/RuntimeStatus.js";
 import { runMenu } from "./menu.js";
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -32,16 +32,23 @@ async function main() {
     const titleSuggester = createTitleSuggester(config.title);
     const transcriptionService = new TranscriptionService(backend, logger, titleSuggester, config.title);
     const queue = new TranscriptionJobQueue();
-    const poller = new FileSystemPoller(config.watch, queue, logger, config.backend.languageHint);
     const statusPath = config.runtimeStatusPath;
     const statusUpdater = createStatusUpdater(statusPath);
+    const poller = new FileSystemPoller(config.watch, queue, logger, config.backend.languageHint, statusUpdater);
     const worker = new JobWorker(queue, transcriptionService, logger, statusUpdater);
     if (command === "watch") {
         if (!config.watch.enabled) {
             logger.warn("Watch is disabled in configuration. Exiting.");
             process.exit(0);
         }
-        writeStatus(statusPath, { state: "idle", queueLength: 0, currentFile: null, lastError: null });
+        writeStatus(statusPath, {
+            runtimeActivityState: "idle",
+            queueLength: 0,
+            currentFile: null,
+            lastError: null,
+            currentJobId: null,
+            currentPhaseDetail: null
+        });
         const controller = new AbortController();
         const { signal } = controller;
         process.on("SIGINT", () => {
@@ -55,7 +62,22 @@ async function main() {
         const pollLoop = (async () => {
             const intervalMs = config.watch.pollingIntervalSeconds * 1000;
             while (!signal.aborted) {
+                statusUpdater({
+                    runtimeActivityState: "scanning",
+                    currentPhaseDetail: "watch scan",
+                    lastError: null
+                });
                 poller.scanOnce();
+                const currentStatus = readStatus(statusPath);
+                if (currentStatus &&
+                    ["scanning", "enqueuingJob", "completed"].includes(currentStatus.runtimeActivityState)) {
+                    statusUpdater({
+                        runtimeActivityState: "idle",
+                        currentPhaseDetail: null,
+                        currentFile: null,
+                        currentJobId: null
+                    });
+                }
                 await delay(intervalMs);
             }
         })();

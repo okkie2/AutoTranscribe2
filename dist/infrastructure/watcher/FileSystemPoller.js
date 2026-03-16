@@ -8,11 +8,12 @@ import { TranscriptionJobState } from "../../domain/TranscriptionJob.js";
  * It tracks seen files in-memory for the lifetime of the process.
  */
 export class FileSystemPoller {
-    constructor(config, queue, logger, defaultLanguageHint) {
+    constructor(config, queue, logger, defaultLanguageHint, statusUpdater) {
         this.config = config;
         this.queue = queue;
         this.logger = logger;
         this.defaultLanguageHint = defaultLanguageHint;
+        this.statusUpdater = statusUpdater;
         this.seenFiles = new Set();
     }
     /**
@@ -73,6 +74,14 @@ export class FileSystemPoller {
                 jobId: job.id,
                 audioFile: job.audioFile.path,
                 targetTranscriptPath: job.targetTranscriptPath
+            });
+            this.statusUpdater?.({
+                runtimeActivityState: "enqueuingJob",
+                queueLength: this.queue.getLength() + 1,
+                currentFile: path.basename(job.audioFile.path),
+                currentJobId: job.id,
+                currentPhaseDetail: "watch enqueue",
+                lastError: null
             });
             this.queue.enqueue(job);
         }

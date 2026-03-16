@@ -1,5 +1,8 @@
 export {
+  buildCompactStatusSnapshot,
   formatDashboardLines,
-  getEffectiveState,
-  type EffectiveState
+  formatCompactStatusSnapshotLines,
+  getStatusFreshness,
+  type CompactStatusSnapshot,
+  type StatusFreshness
 } from "../application/StatusSnapshot.js";

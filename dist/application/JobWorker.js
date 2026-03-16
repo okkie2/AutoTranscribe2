@@ -26,10 +26,12 @@ export class JobWorker {
                 continue;
             }
             this.statusUpdater?.({
-                state: "processing",
+                runtimeActivityState: "processingTranscription",
                 currentFile: path.basename(job.audioFile.path),
                 queueLength: this.queue.getLength(),
-                lastError: null
+                lastError: null,
+                currentJobId: job.id,
+                currentPhaseDetail: "transcription"
             });
             await this.processJob(job);
         }
@@ -57,10 +59,12 @@ export class JobWorker {
                 transcriptPath
             });
             this.statusUpdater?.({
-                state: "idle",
+                runtimeActivityState: "completed",
                 currentFile: null,
                 queueLength: this.queue.getLength(),
-                lastError: null
+                lastError: null,
+                currentJobId: job.id,
+                currentPhaseDetail: path.basename(transcriptPath)
             });
         }
         catch (err) {
@@ -74,10 +78,12 @@ export class JobWorker {
                 error: message
             });
             this.statusUpdater?.({
-                state: "error",
+                runtimeActivityState: "failed",
                 currentFile: null,
                 queueLength: this.queue.getLength(),
-                lastError: message
+                lastError: message,
+                currentJobId: job.id,
+                currentPhaseDetail: "transcription failed"
             });
         }
     }

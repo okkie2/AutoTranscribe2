@@ -57,8 +57,8 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 ## Key features
 
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
-- **Simple operational menu:** `autotranscribe menu` opens the `WatcherControl` menu with an always-visible compact `StatusSnapshot`, plus status, start/stop/restart, recent `TranscriptionJob`s, and the `LatestTranscript`.
-- **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms (state, queue, current file; data from `runtime/status.json`). Press Ctrl+C to exit.
+- **Simple operational menu:** `autotranscribe menu` opens the `WatcherControl` menu with an always-visible compact `StatusSnapshot`, manual refresh, status, start/stop/restart, recent `TranscriptionJob`s, and the `LatestTranscript`.
+- **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms (activity, freshness, queue, current job; data from `runtime/status.json`). Press Ctrl+C to exit.
 - **MLX Whisper** on Apple Silicon (Python package **mlx-whisper** 0.4.x, e.g. 0.4.3; model `mlx-community/whisper-large-v3-turbo`); optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
 - **JPR ingestion** via lightweight polling of the iCloud folder, plus **unified start/stop** (`npm run start:all` / `stop:all`)

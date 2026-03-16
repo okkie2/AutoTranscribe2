@@ -1,0 +1,15 @@
+# Ubiquitous Language
+
+This document mirrors the canonical glossary in the repository root: [../UbiquitousLanguageGlossary.md](../UbiquitousLanguageGlossary.md).
+
+Prefer existing terms from that glossary in code, tests, docs, and CLI output.
+
+Core operational terms for the CLI and runtime model:
+
+- **WatcherControl**: Operational control surface for starting, stopping, restarting, and inspecting the watcher stack.
+- **StatusSnapshot**: Read model shown to an operator in the menu or status views.
+- **LatestTranscript**: Most recently written transcript artifact in the configured transcript output directory.
+- **WatcherProcessState**: Lifecycle state of the watcher process itself.
+- **RuntimeActivityState**: Current runtime activity being performed by the system.
+- **StatusFreshness**: Freshness of runtime status derived from `updatedAt`.
+- **CurrentTranscriptionJob**: Current file or job reference shown to the operator in status output.

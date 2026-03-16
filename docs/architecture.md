@@ -33,11 +33,11 @@ Core concepts with no infrastructure dependency: `AudioFile`, `TranscriptionJob`
 
 ### Application
 
-High-level orchestration: `TranscriptionService` (transcribe, title, write transcript), `JobWorker` (pull jobs from queue, call service), and `WatcherControl` (start/stop/restart/status, compact `StatusSnapshot`, recent `TranscriptionJob`s, latest transcript lookup). Lives under `src/application/`.
+High-level orchestration: `TranscriptionService` (transcribe, title, write transcript), `JobWorker` (pull jobs from queue, call service), and `WatcherControl` (start/stop/restart/status, compact `StatusSnapshot`, recent `TranscriptionJob`s, latest transcript lookup). `StatusSnapshot` now separates `WatcherProcessState`, `RuntimeActivityState`, and `StatusFreshness`. Lives under `src/application/`.
 
 ### Infrastructure
 
-Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (state, queue length, current file). Lives under `src/infrastructure/`.
+Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (`runtimeActivityState`, queue length, current file, last error, freshness derived from `updatedAt`). Lives under `src/infrastructure/`.
 
 ### CLI
 

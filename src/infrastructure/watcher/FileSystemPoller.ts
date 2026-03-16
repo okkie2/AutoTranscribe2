@@ -6,6 +6,9 @@ import type { Logger } from "../logging/Logger.js";
 import type { TranscriptionJob } from "../../domain/TranscriptionJob.js";
 import { TranscriptionJobState } from "../../domain/TranscriptionJob.js";
 import type { AudioFile } from "../../domain/AudioFile.js";
+import type { RuntimeStatus } from "../status/RuntimeStatus.js";
+
+type StatusUpdater = (partial: Partial<Omit<RuntimeStatus, "updatedAt">>) => void;
 
 /**
  * FileSystemPoller scans configured directories for new audio files and
@@ -20,7 +23,8 @@ export class FileSystemPoller {
     private readonly config: WatchConfiguration,
     private readonly queue: TranscriptionJobQueue,
     private readonly logger: Logger,
-    private readonly defaultLanguageHint: string | null
+    private readonly defaultLanguageHint: string | null,
+    private readonly statusUpdater?: StatusUpdater
   ) {}
 
   /**
@@ -93,6 +97,14 @@ export class FileSystemPoller {
         targetTranscriptPath: job.targetTranscriptPath
       });
 
+      this.statusUpdater?.({
+        runtimeActivityState: "enqueuingJob",
+        queueLength: this.queue.getLength() + 1,
+        currentFile: path.basename(job.audioFile.path),
+        currentJobId: job.id,
+        currentPhaseDetail: "watch enqueue",
+        lastError: null
+      });
       this.queue.enqueue(job);
     }
   }
@@ -167,4 +179,3 @@ export class FileSystemPoller {
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 }
-

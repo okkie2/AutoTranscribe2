@@ -21,9 +21,10 @@ autotranscribe menu
 This opens a lightweight interactive menu with exactly these actions:
 
 - A compact `StatusSnapshot` is always visible above the menu whenever it is shown or refreshed.
-- The compact snapshot shows the current `WatcherProcessState` and, when available, queue information and the `LatestTranscript` filename.
+- The compact snapshot shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, current job, and the `LatestTranscript` filename when available.
+- The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
 
-- **Show Watcher Status** – shows the fuller live `StatusSnapshot` based on `runtime/status.json` and the current watcher PID state.
+- **Show Watcher Status** – shows the fuller static `StatusSnapshot` based on `runtime/status.json` and the current watcher PID state.
 - **Start Watcher** – starts the existing watcher control flow (`ingest:jpr` + watcher, including the Ollama check when configured).
 - **Stop Watcher** – stops that watcher control flow using `.autotranscribe2-pids.json`.
 - **Restart Watcher** – stops the watcher control flow, waits until it has stopped cleanly, then starts it again.
@@ -55,7 +56,7 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 - **Recordings:** Input audio lives in the directory listed in `watch.directories` (default `~/Documents/AutoTranscribe2/recordings`). The JPR ingester writes normalised filenames there.
 - **Transcripts:** Each transcript is written to `watch.output_directory` (default `~/Documents/AutoTranscribe2/transcripts`) as `{timestamp}_{slug}.md` or `{timestamp}_Untitled.md`.
 - **Logs:** Console and file logs go to the path in `logging.log_file` (default `~/Documents/AutoTranscribe2/logs/autotranscribe.log`).
-- **Runtime status:** When the watcher is running, it writes `runtime/status.json` (next to `config.yaml`) with current state (`idle`, `processing`, `error`), queue length, current file, and last error. The status command reads this file.
+- **Runtime status:** When the runtime is active, it writes `runtime/status.json` (next to `config.yaml`) with `runtimeActivityState`, queue length, current file, last error, and `updatedAt`. Freshness is derived separately from `updatedAt`.
 
 ## Live status dashboard
 
@@ -68,13 +69,13 @@ npm run status
 This starts a **live-updating terminal dashboard** that:
 
 - Refreshes **every 500 ms** in place (no scrolling).
-- Shows: **State** (idle / processing / error), **Queue length**, **Current file** (if any), **Last update** time, **Last error** (if any).
-- Uses colour: green (idle), yellow (processing), red (error), dim (stale or no data).
+- Shows: **Activity**, **Freshness**, **Queue length**, **Current job** (if any), **Last update** time, **Last error** (if any).
+- Uses colour on freshness: green (`fresh`), dim (`stale`), red (`missing`).
 - Reads from the same `runtime/status.json` file the watcher updates.
 
 Press **Ctrl+C** to exit the dashboard cleanly.
 
-If the status file is missing or invalid (e.g. watcher not running), the dashboard shows fallbacks (`-`) and the path it looked for. If data is older than about 30 seconds, the state is shown as *stale* (dim).
+If the status file is missing or invalid, the dashboard shows fallbacks (`-`) and the path it looked for. If data is older than about 30 seconds, freshness is shown as `stale` (dim).
 
 ## Autostart on macOS
 
@@ -93,7 +94,7 @@ This installs a launchd plist that runs `npm run start:all` at login. Logs go to
 - **start:all:** Builds the project; if title provider is `ollama`, tries to start Ollama; spawns `ingest:jpr` and `autotranscribe watch`; writes child PIDs to `.autotranscribe2-pids.json`.
 - **ingest:jpr:** Polls the configured Just Press Record iCloud folder every 3 seconds, waits for each `.m4a` file to stabilize, then copies it into the recordings folder and removes the source file.
 - **stop:all:** Sends `SIGINT` to those processes using the PID file, then removes the file.
-- **menu:** Reuses the same watcher control path for start/stop/restart, plus shows `StatusSnapshot`, recent `TranscriptionJob`s, and the `LatestTranscript`.
+- **menu:** Reuses the same watcher control path for start/stop/restart, plus shows a static `StatusSnapshot`, recent `TranscriptionJob`s, and the `LatestTranscript`.
 
 ---
 

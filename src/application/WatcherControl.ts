@@ -3,7 +3,13 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import type { AppConfig } from "../infrastructure/config/AppConfig.js";
 import { readStatus } from "../infrastructure/status/RuntimeStatus.js";
-import { formatDashboardLines, getEffectiveState, type EffectiveState } from "./StatusSnapshot.js";
+import {
+  buildCompactStatusSnapshot,
+  formatCompactStatusSnapshotLines,
+  formatDashboardLines,
+  type CompactStatusSnapshot,
+  type StatusFreshness
+} from "./StatusSnapshot.js";
 
 const PID_FILE = ".autotranscribe2-pids.json";
 const STOP_TIMEOUT_MS = 10_000;
@@ -11,12 +17,13 @@ const STOP_POLL_INTERVAL_MS = 250;
 const RECENT_JOB_LIMIT = 5;
 
 export interface StatusSnapshot {
-  watcherProcessState: "running" | "stopped";
-  effectiveState: EffectiveState | "none";
+  watcherProcessState: WatcherProcessState;
+  runtimeActivityState: string | null;
+  statusFreshness: StatusFreshness;
   lines: string[];
 }
 
-export type WatcherProcessState = StatusSnapshot["watcherProcessState"];
+export type WatcherProcessState = "running" | "stopped" | "starting" | "stopping" | "error";
 
 export interface LatestTranscript {
   transcriptPath: string;
@@ -213,36 +220,33 @@ export async function restartWatcherControl(config: AppConfig): Promise<void> {
 export function getStatusSnapshot(config: AppConfig): StatusSnapshot {
   const status = readStatus(config.runtimeStatusPath);
   const pids = readPidFile();
-  const watcherProcessState = isPidRunning(pids?.watchPid) ? "running" : "stopped";
+  const watcherProcessState: WatcherProcessState = isPidRunning(pids?.watchPid) ? "running" : "stopped";
   const dashboard = formatDashboardLines(status, config.runtimeStatusPath);
-  const statusLinePrefix = "Watcher process: ";
   const lines = [
     "AutoTranscribe2 WatcherControl",
     "",
-    `${statusLinePrefix}${watcherProcessState}`,
+    `Watcher process: ${watcherProcessState}`,
     ...dashboard.lines.filter((line) => line !== "AutoTranscribe2 status" && line !== "Press Ctrl+C to exit.")
   ];
 
   return {
     watcherProcessState,
-    effectiveState: getEffectiveState(status),
+    runtimeActivityState: status?.runtimeActivityState ?? null,
+    statusFreshness: dashboard.statusFreshness,
     lines
   };
 }
 
-export function getCompactStatusSnapshot(config: AppConfig): string[] {
-  const snapshot = getStatusSnapshot(config);
+export function getCompactStatusSnapshot(config: AppConfig): CompactStatusSnapshot {
   const status = readStatus(config.runtimeStatusPath);
   const latestTranscript = getLatestTranscript(config);
+  const pids = readPidFile();
+  const watcherProcessState: WatcherProcessState = isPidRunning(pids?.watchPid) ? "running" : "stopped";
+  return buildCompactStatusSnapshot(watcherProcessState, status, latestTranscript);
+}
 
-  return [
-    "AutoTranscribe2",
-    "",
-    `Watcher: ${snapshot.watcherProcessState.toUpperCase()}`,
-    `Queue: ${status ? `${status.queueLength} jobs` : "-"}`,
-    `LatestTranscript: ${latestTranscript ? path.basename(latestTranscript.transcriptPath) : "-"}`,
-    ""
-  ];
+export function getCompactStatusSnapshotLines(config: AppConfig): string[] {
+  return formatCompactStatusSnapshotLines(getCompactStatusSnapshot(config));
 }
 
 function parseLogMeta(line: string): Record<string, unknown> | null {

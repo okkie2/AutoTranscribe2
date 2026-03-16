@@ -28,9 +28,15 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **StatusSnapshot**: A concise read model for showing the current watcher state to an operator. Derived from runtime status data plus watcher process information, and used for human-readable status views.
 
-- **WatcherProcessState**: The operator-facing state of the watcher process itself. For the current CLI this is `running` or `stopped`, distinct from runtime activity states such as `idle`, `processing`, or `error`.
+- **WatcherProcessState**: The operator-facing lifecycle state of the watcher process itself. Current values: `running`, `stopped`, `starting`, `stopping`, `error`.
+
+- **RuntimeActivityState**: The current runtime activity being performed by the system. Distinct from process lifecycle and freshness. Examples: `idle`, `scanning`, `waitingForStableFile`, `ingesting`, `enqueuingJob`, `processingTranscription`, `writingTranscript`, `completed`, `failed`.
+
+- **StatusFreshness**: Freshness derived from `updatedAt` on runtime status. Current values: `fresh`, `stale`, `missing`. This is separate from `RuntimeActivityState`.
 
 - **LatestTranscript**: The most recently written `Transcript` in the configured transcript output directory. Used by operational flows that need to open or inspect the newest result quickly.
+
+- **CurrentTranscriptionJob**: The currently active file or job reference shown to an operator in status views. In the current CLI this is represented by `currentFile` and, when available, `currentJobId`.
 
 - **Poller**: The concrete mechanism used by the `Watcher` to detect file system changes via periodic scans (e.g. every N seconds). In later versions it may be replaced or augmented by real filesystem events without changing domain logic.
 

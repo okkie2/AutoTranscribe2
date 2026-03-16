@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getCompactStatusSnapshot, getLatestTranscript, getStatusSnapshot, listRecentTranscriptionJobs } from "../application/WatcherControl.js";
+import { getCompactStatusSnapshot, getCompactStatusSnapshotLines, getLatestTranscript, getStatusSnapshot, listRecentTranscriptionJobs } from "../application/WatcherControl.js";
 function createTestConfig(rootDir) {
     return {
         watch: {
@@ -92,7 +92,7 @@ test("getStatusSnapshot includes watcher process state and dashboard lines", () 
         const config = createTestConfig(rootDir);
         fs.mkdirSync(path.dirname(config.runtimeStatusPath), { recursive: true });
         fs.writeFileSync(config.runtimeStatusPath, JSON.stringify({
-            state: "idle",
+            runtimeActivityState: "idle",
             queueLength: 0,
             currentFile: null,
             lastError: null,
@@ -101,7 +101,9 @@ test("getStatusSnapshot includes watcher process state and dashboard lines", () 
         const snapshot = getStatusSnapshot(config);
         assert.equal(snapshot.watcherProcessState, "stopped");
         assert.ok(snapshot.lines.some((line) => line.includes("Watcher process: stopped")));
-        assert.ok(snapshot.lines.some((line) => line.includes("State: idle")));
+        assert.equal(snapshot.runtimeActivityState, "idle");
+        assert.equal(snapshot.statusFreshness, "fresh");
+        assert.ok(snapshot.lines.some((line) => line.includes("Activity: idle")));
     });
 });
 test("getCompactStatusSnapshot includes watcher process state, queue, and latest transcript", () => {
@@ -110,16 +112,22 @@ test("getCompactStatusSnapshot includes watcher process state, queue, and latest
         fs.mkdirSync(path.dirname(config.runtimeStatusPath), { recursive: true });
         fs.mkdirSync(path.resolve(config.watch.outputDirectory), { recursive: true });
         fs.writeFileSync(config.runtimeStatusPath, JSON.stringify({
-            state: "idle",
+            runtimeActivityState: "idle",
             queueLength: 3,
             currentFile: null,
             lastError: null,
             updatedAt: new Date().toISOString()
         }), "utf8");
         fs.writeFileSync(path.join(path.resolve(config.watch.outputDirectory), "latest.md"), "# latest\n", "utf8");
-        const lines = getCompactStatusSnapshot(config);
+        const snapshot = getCompactStatusSnapshot(config);
+        const lines = getCompactStatusSnapshotLines(config);
+        assert.equal(snapshot.watcherProcessState, "stopped");
+        assert.equal(snapshot.runtimeActivityState, "idle");
+        assert.equal(snapshot.statusFreshness, "fresh");
         assert.equal(lines[0], "AutoTranscribe2");
         assert.ok(lines.some((line) => line.includes("Watcher: STOPPED")));
+        assert.ok(lines.some((line) => line.includes("Activity: idle")));
+        assert.ok(lines.some((line) => line.includes("Freshness: fresh")));
         assert.ok(lines.some((line) => line.includes("Queue: 3 jobs")));
         assert.ok(lines.some((line) => line.includes("LatestTranscript: latest.md")));
     });

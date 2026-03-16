@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadConfig } from "../infrastructure/config/YamlConfigLoader.js";
+import { createStatusUpdater } from "../infrastructure/status/RuntimeStatus.js";
 
 const POLL_INTERVAL_MS = 3_000;
 
@@ -100,7 +101,8 @@ async function handleFile(
   filePath: string,
   sourceRoot: string,
   destRoot: string,
-  inFlight: Set<string>
+  inFlight: Set<string>,
+  statusUpdater: ReturnType<typeof createStatusUpdater>
 ): Promise<void> {
   if (isHidden(filePath)) return;
   const ext = path.extname(filePath).toLowerCase();
@@ -122,10 +124,22 @@ async function handleFile(
 
   console.log("New JPR recording detected:", filePath);
   try {
+    statusUpdater({
+      runtimeActivityState: "waitingForStableFile",
+      currentFile: path.basename(filePath),
+      currentPhaseDetail: "stable file check",
+      lastError: null
+    });
     await waitForStableFile(filePath);
     const srcStat = fs.statSync(filePath);
     console.log("Source ready, size:", srcStat.size, "path:", filePath);
 
+    statusUpdater({
+      runtimeActivityState: "ingesting",
+      currentFile: path.basename(filePath),
+      currentPhaseDetail: "copying recording",
+      lastError: null
+    });
     fs.copyFileSync(filePath, tempPath);
     const destStat = fs.statSync(tempPath);
     console.log("Copy complete, temp size:", destStat.size, "temp path:", tempPath);
@@ -146,9 +160,21 @@ async function handleFile(
     fs.unlinkSync(filePath);
     console.log("Removed source:", filePath);
     maybeRemoveEmptyParent(path.dirname(filePath), sourceRoot);
+    statusUpdater({
+      runtimeActivityState: "completed",
+      currentFile: null,
+      currentPhaseDetail: path.basename(destPath),
+      lastError: null
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Ingest error for", filePath, message);
+    statusUpdater({
+      runtimeActivityState: "failed",
+      currentFile: path.basename(filePath),
+      currentPhaseDetail: "ingest failed",
+      lastError: message
+    });
     try {
       fs.unlinkSync(tempPath);
     } catch {
@@ -163,6 +189,7 @@ async function main() {
   const config = loadConfig("config.yaml");
   const sourceRoot = path.resolve(config.ingest.jprSourceRoot);
   const destRoot = path.resolve(config.ingest.recordingsRoot);
+  const statusUpdater = createStatusUpdater(config.runtimeStatusPath);
 
   if (!fs.existsSync(destRoot)) {
     fs.mkdirSync(destRoot, { recursive: true });
@@ -177,7 +204,7 @@ async function main() {
 
   const processDiscoveredFiles = (): void => {
     for (const filePath of listAudioFiles(sourceRoot)) {
-      void handleFile(filePath, sourceRoot, destRoot, inFlight);
+      void handleFile(filePath, sourceRoot, destRoot, inFlight, statusUpdater);
     }
   };
 
