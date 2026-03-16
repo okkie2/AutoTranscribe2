@@ -11,7 +11,6 @@ These packages are installed through `npm install` and are declared in
 | Package | Version | License |
 | --- | --- | --- |
 | `chalk` | `5.6.2` | MIT |
-| `chokidar` | `3.6.0` | MIT |
 | `yaml` | `2.8.2` | ISC |
 | `typescript` | `5.9.3` | Apache-2.0 |
 | `@types/node` | `22.19.15` | MIT |
