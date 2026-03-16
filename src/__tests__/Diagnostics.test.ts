@@ -58,10 +58,12 @@ async function withTempCwd<T>(fn: (rootDir: string) => T | Promise<T>): Promise<
   const previousCwd = process.cwd();
   const previousTraceLogPath = process.env.AUTOTRANSCRIBE_TRACE_LOG_PATH;
   const previousBundleDir = process.env.AUTOTRANSCRIBE_DIAGNOSTIC_BUNDLE_DIR;
+  const previousProcessList = process.env.AUTOTRANSCRIBE_PROCESS_LIST;
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "autotranscribe2-diagnostics-"));
   process.chdir(rootDir);
   process.env.AUTOTRANSCRIBE_TRACE_LOG_PATH = path.join(rootDir, "cli-trace.jsonl");
   process.env.AUTOTRANSCRIBE_DIAGNOSTIC_BUNDLE_DIR = path.join(rootDir, "diagnostic-bundles");
+  process.env.AUTOTRANSCRIBE_PROCESS_LIST = "";
   setTraceSessionIdForTest("test-session");
   try {
     return await fn(rootDir);
@@ -76,6 +78,11 @@ async function withTempCwd<T>(fn: (rootDir: string) => T | Promise<T>): Promise<
       delete process.env.AUTOTRANSCRIBE_DIAGNOSTIC_BUNDLE_DIR;
     } else {
       process.env.AUTOTRANSCRIBE_DIAGNOSTIC_BUNDLE_DIR = previousBundleDir;
+    }
+    if (previousProcessList === undefined) {
+      delete process.env.AUTOTRANSCRIBE_PROCESS_LIST;
+    } else {
+      process.env.AUTOTRANSCRIBE_PROCESS_LIST = previousProcessList;
     }
   }
 }

@@ -60,12 +60,19 @@ function createTestConfig(rootDir: string): AppConfig {
 
 async function withTempCwd<T>(fn: (rootDir: string) => T | Promise<T>): Promise<T> {
   const previousCwd = process.cwd();
+  const previousProcessList = process.env.AUTOTRANSCRIBE_PROCESS_LIST;
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "autotranscribe2-cwd-"));
   process.chdir(rootDir);
+  process.env.AUTOTRANSCRIBE_PROCESS_LIST = "";
   try {
     return await fn(rootDir);
   } finally {
     process.chdir(previousCwd);
+    if (previousProcessList === undefined) {
+      delete process.env.AUTOTRANSCRIBE_PROCESS_LIST;
+    } else {
+      process.env.AUTOTRANSCRIBE_PROCESS_LIST = previousProcessList;
+    }
   }
 }
 
