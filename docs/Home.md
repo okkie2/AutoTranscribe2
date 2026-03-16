@@ -6,7 +6,7 @@ AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It 
 
 1. Record audio (e.g. Just Press Record on your phone).
 2. The recording syncs to your Mac via iCloud.
-3. AutoTranscribe2 detects the new file.
+3. AutoTranscribe2 picks it up from iCloud and detects the new file.
 4. Whisper transcribes it locally.
 5. A titled Markdown transcript appears in your transcripts folder.
 
@@ -58,9 +58,9 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms (state, queue, current file; data from `runtime/status.json`). Press Ctrl+C to exit.
-- **MLX Whisper** on Apple Silicon; optional Ollama for titles
+- **MLX Whisper** on Apple Silicon (Python package **mlx-whisper** 0.4.x, e.g. 0.4.3; model `mlx-community/whisper-large-v3-turbo`); optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
-- **JPR ingestion** and **unified start/stop** (`npm run start:all` / `stop:all`)
+- **JPR ingestion** via lightweight polling of the iCloud folder, plus **unified start/stop** (`npm run start:all` / `stop:all`)
 
 ---
 
