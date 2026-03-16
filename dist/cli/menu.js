@@ -3,7 +3,8 @@ import chalk from "chalk";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
-import { getCompactStatusSnapshotLines, getCompactStatusSnapshot, getStatusSnapshot, listRecentTranscriptionJobs, openLatestTranscript, reconcileManagedWatcherStack, restartWatcherControl, startWatcherControl, stopWatcherControl } from "../application/WatcherControl.js";
+import { getCompactStatusSnapshotLines, getStatusSnapshot, listRecentTranscriptionJobs } from "../application/WatcherControl.js";
+import { MENU_ACTIONS } from "./menuActions.js";
 const MENU_OPTIONS = [
     "Show Watcher Status",
     "Start Watcher",
@@ -200,132 +201,28 @@ async function showResultScreen(config, selection, rl) {
             command: selection
         });
     }
-    switch (selection) {
-        case "1":
-        case "Show Watcher Status":
-            traceEvent({
-                event: "command_parsed",
-                source: "cli:menu",
-                command: "Show Watcher Status"
-            });
-            await showLiveWatcherStatus(config, rl);
-            return { running: true, requiresPause: false };
-        case "2":
-        case "Start Watcher":
-            traceEvent({
-                event: "command_parsed",
-                source: "cli:menu",
-                command: "Start Watcher"
-            });
-            if (!canStartWatcher(config)) {
-                console.clear();
-                console.log("Watcher appears to be running already. Stop it first before starting again.");
-                console.log("");
-                return { running: true, requiresPause: true };
-            }
-            if (!(await confirmAction(rl, "Start Watcher"))) {
-                console.clear();
-                console.log("Start Watcher cancelled.");
-                console.log("");
-                return { running: true, requiresPause: true };
-            }
-            console.clear();
-            await startWatcherControl(config);
-            console.log("Start Watcher succeeded.");
-            console.log("");
-            return { running: true, requiresPause: true };
-        case "3":
-        case "Stop Watcher":
-            traceEvent({
-                event: "command_parsed",
-                source: "cli:menu",
-                command: "Stop Watcher"
-            });
-            if (!canStopWatcher(config)) {
-                console.clear();
-                console.log("Watcher is already stopped. Nothing to stop.");
-                console.log("");
-                return { running: true, requiresPause: true };
-            }
-            if (!(await confirmAction(rl, "Stop Watcher"))) {
-                console.clear();
-                console.log("Stop Watcher cancelled.");
-                console.log("");
-                return { running: true, requiresPause: true };
-            }
-            console.clear();
-            await stopWatcherControl(config);
-            console.log("Stop Watcher succeeded.");
-            console.log("");
-            return { running: true, requiresPause: true };
-        case "4":
-        case "Restart Watcher":
-            traceEvent({
-                event: "command_parsed",
-                source: "cli:menu",
-                command: "Restart Watcher"
-            });
-            if (!canRestartWatcher(config)) {
-                console.clear();
-                console.log("Watcher is already stopped. Nothing to restart.");
-                console.log("");
-                return { running: true, requiresPause: true };
-            }
-            if (!(await confirmAction(rl, "Restart Watcher"))) {
-                console.clear();
-                console.log("Restart Watcher cancelled.");
-                console.log("");
-                return { running: true, requiresPause: true };
-            }
-            console.clear();
-            await restartWatcherControl(config);
-            console.log("Restart Watcher succeeded.");
-            console.log("");
-            return { running: true, requiresPause: true };
-        case "5":
-        case "Show Recent TranscriptionJobs":
-            traceEvent({
-                event: "command_parsed",
-                source: "cli:menu",
-                command: "Show Recent TranscriptionJobs"
-            });
-            renderRecentJobs(config);
-            return { running: true, requiresPause: true };
-        case "6": {
-            traceEvent({
-                event: "command_parsed",
-                source: "cli:menu",
-                command: "Open Latest Transcript"
-            });
-            console.clear();
-            const latestTranscript = openLatestTranscript(config);
-            console.log(`Opened LatestTranscript: ${latestTranscript.transcriptPath}`);
-            console.log("");
-            return { running: true, requiresPause: true };
-        }
-        case "7":
-        case "Exit":
-            traceEvent({
-                event: "command_parsed",
-                source: "cli:menu",
-                command: "Exit"
-            });
-            return { running: false, requiresPause: false };
-        case "":
-        case "r":
-        case "R":
-            return { running: true, requiresPause: false };
-        default:
-            traceEvent({
-                event: "command_rejected",
-                source: "cli:menu",
-                command: selection
-            });
-            console.clear();
-            console.log("Unknown selection. Choose 1-7, press Enter to refresh, or type 'r'.");
-            console.log("");
-            return { running: true, requiresPause: true };
+    if (selection === "" || selection === "r" || selection === "R") {
+        return { running: true, requiresPause: false };
     }
+    const actionHandler = MENU_ACTIONS[selection];
+    if (!actionHandler) {
+        traceEvent({
+            event: "command_rejected",
+            source: "cli:menu",
+            command: selection
+        });
+        console.clear();
+        console.log("Unknown selection. Choose 1-7, press Enter to refresh, or type 'r'.");
+        console.log("");
+        return { running: true, requiresPause: true };
+    }
+    return actionHandler({
+        config,
+        rl,
+        showLiveWatcherStatus: () => showLiveWatcherStatus(config, rl),
+        renderRecentJobs: () => renderRecentJobs(config),
+        confirmAction: (actionLabel) => confirmAction(rl, actionLabel)
+    });
 }
 async function confirmAction(rl, actionLabel) {
     if (!input.isTTY) {
@@ -372,54 +269,6 @@ async function confirmAction(rl, actionLabel) {
     });
     rl.resume();
     return confirmed;
-}
-function canStartWatcher(config) {
-    const reconciliation = reconcileManagedWatcherStack(config);
-    const allowed = ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState);
-    traceEvent({
-        event: "transition_guard_evaluated",
-        source: "cli:menu",
-        command: "Start Watcher",
-        observed_state: getCompactStatusSnapshot(config),
-        metadata: {
-            guard: "menu_start_allowed",
-            evaluated_value: allowed,
-            source_of_truth: "reconciled_process_state"
-        }
-    });
-    return allowed;
-}
-function canStopWatcher(config) {
-    const reconciliation = reconcileManagedWatcherStack(config);
-    const allowed = reconciliation.reconciledProcessState !== "stopped";
-    traceEvent({
-        event: "transition_guard_evaluated",
-        source: "cli:menu",
-        command: "Stop Watcher",
-        observed_state: getCompactStatusSnapshot(config),
-        metadata: {
-            guard: "menu_stop_allowed",
-            evaluated_value: allowed,
-            source_of_truth: "reconciled_process_state"
-        }
-    });
-    return allowed;
-}
-function canRestartWatcher(config) {
-    const reconciliation = reconcileManagedWatcherStack(config);
-    const allowed = reconciliation.reconciledProcessState !== "stopped";
-    traceEvent({
-        event: "transition_guard_evaluated",
-        source: "cli:menu",
-        command: "Restart Watcher",
-        observed_state: getCompactStatusSnapshot(config),
-        metadata: {
-            guard: "menu_restart_allowed",
-            evaluated_value: allowed,
-            source_of_truth: "reconciled_process_state"
-        }
-    });
-    return allowed;
 }
 export async function runMenu(config) {
     const rl = readline.createInterface({ input, output });
