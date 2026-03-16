@@ -26,9 +26,9 @@ This opens a lightweight interactive menu with exactly these actions:
 - Menu actions, `start:all`, and autostart all use the same single-instance `ManagedWatcherStack` guard. If a valid stack lock already owns runtime control, start is refused instead of creating duplicate watcher stacks.
 
 - **Show Watcher Status** – shows the fuller live status view based on `runtime/status.json`, the reconciled `ManagedWatcherStack`, and the current `LatestTranscript`.
-- **Start Watcher** – starts the managed watcher stack (`ingest:jpr` + watcher, including the Ollama check when configured) only when the stack lock can be acquired safely.
-- **Stop Watcher** – stops only the managed watcher stack, then cleans the stack lock and legacy PID artifacts.
-- **Restart Watcher** – stops the managed watcher stack, verifies ownership cleanup, then starts it again.
+- **Start Watcher** – checks whether start is currently allowed, asks for confirmation only when it is, then starts the managed watcher stack (`ingest:jpr` + watcher, including the Ollama check when configured).
+- **Stop Watcher** – first checks whether there is anything to stop, asks for confirmation only when stopping is applicable, then stops the managed watcher stack and cleans lock/PID artifacts.
+- **Restart Watcher** – first checks whether there is anything to restart, asks for confirmation only when restarting is applicable, then stops and starts the managed watcher stack.
 - **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
 - **Open Latest Transcript** – finds the `LatestTranscript` in `watch.output_directory` and opens it with the default macOS viewer.
 - **Exit** – closes the menu.

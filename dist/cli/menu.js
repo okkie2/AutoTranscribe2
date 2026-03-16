@@ -223,8 +223,16 @@ async function showResultScreen(config, selection, rl) {
                 console.log("");
                 return { running: true, requiresPause: true };
             }
+            if (!(await confirmAction(rl, "Start Watcher"))) {
+                console.clear();
+                console.log("Start Watcher cancelled.");
+                console.log("");
+                return { running: true, requiresPause: true };
+            }
             console.clear();
             await startWatcherControl(config);
+            console.log("Start Watcher succeeded.");
+            console.log("");
             return { running: true, requiresPause: true };
         case "3":
         case "Stop Watcher":
@@ -233,6 +241,12 @@ async function showResultScreen(config, selection, rl) {
                 source: "cli:menu",
                 command: "Stop Watcher"
             });
+            if (!canStopWatcher(config)) {
+                console.clear();
+                console.log("Watcher is already stopped. Nothing to stop.");
+                console.log("");
+                return { running: true, requiresPause: true };
+            }
             if (!(await confirmAction(rl, "Stop Watcher"))) {
                 console.clear();
                 console.log("Stop Watcher cancelled.");
@@ -241,6 +255,8 @@ async function showResultScreen(config, selection, rl) {
             }
             console.clear();
             await stopWatcherControl(config);
+            console.log("Stop Watcher succeeded.");
+            console.log("");
             return { running: true, requiresPause: true };
         case "4":
         case "Restart Watcher":
@@ -249,6 +265,12 @@ async function showResultScreen(config, selection, rl) {
                 source: "cli:menu",
                 command: "Restart Watcher"
             });
+            if (!canRestartWatcher(config)) {
+                console.clear();
+                console.log("Watcher is already stopped. Nothing to restart.");
+                console.log("");
+                return { running: true, requiresPause: true };
+            }
             if (!(await confirmAction(rl, "Restart Watcher"))) {
                 console.clear();
                 console.log("Restart Watcher cancelled.");
@@ -257,6 +279,8 @@ async function showResultScreen(config, selection, rl) {
             }
             console.clear();
             await restartWatcherControl(config);
+            console.log("Restart Watcher succeeded.");
+            console.log("");
             return { running: true, requiresPause: true };
         case "5":
         case "Show Recent TranscriptionJobs":
@@ -351,6 +375,7 @@ async function confirmAction(rl, actionLabel) {
 }
 function canStartWatcher(config) {
     const reconciliation = reconcileManagedWatcherStack(config);
+    const allowed = ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState);
     traceEvent({
         event: "transition_guard_evaluated",
         source: "cli:menu",
@@ -358,11 +383,43 @@ function canStartWatcher(config) {
         observed_state: getCompactStatusSnapshot(config),
         metadata: {
             guard: "menu_start_allowed",
-            evaluated_value: ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState),
+            evaluated_value: allowed,
             source_of_truth: "reconciled_process_state"
         }
     });
-    return ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState);
+    return allowed;
+}
+function canStopWatcher(config) {
+    const reconciliation = reconcileManagedWatcherStack(config);
+    const allowed = reconciliation.reconciledProcessState !== "stopped";
+    traceEvent({
+        event: "transition_guard_evaluated",
+        source: "cli:menu",
+        command: "Stop Watcher",
+        observed_state: getCompactStatusSnapshot(config),
+        metadata: {
+            guard: "menu_stop_allowed",
+            evaluated_value: allowed,
+            source_of_truth: "reconciled_process_state"
+        }
+    });
+    return allowed;
+}
+function canRestartWatcher(config) {
+    const reconciliation = reconcileManagedWatcherStack(config);
+    const allowed = reconciliation.reconciledProcessState !== "stopped";
+    traceEvent({
+        event: "transition_guard_evaluated",
+        source: "cli:menu",
+        command: "Restart Watcher",
+        observed_state: getCompactStatusSnapshot(config),
+        metadata: {
+            guard: "menu_restart_allowed",
+            evaluated_value: allowed,
+            source_of_truth: "reconciled_process_state"
+        }
+    });
+    return allowed;
 }
 export async function runMenu(config) {
     const rl = readline.createInterface({ input, output });
