@@ -33,7 +33,13 @@ Core concepts with no infrastructure dependency: `AudioFile`, `TranscriptionJob`
 
 ### Application
 
-High-level orchestration: `TranscriptionService` (transcribe, title, write transcript), `JobWorker` (pull jobs from queue, call service), and `WatcherControl` (start/stop/restart/status, compact `StatusSnapshot`, recent `TranscriptionJob`s, latest transcript lookup). `WatcherControl` now owns the single-instance `ManagedWatcherStack` guard and central reconciliation of `StackLock`, legacy PID file, live process checks, unmanaged watcher-like activity, and runtime ownership. `StatusSnapshot` separates `WatcherProcessState`, `RuntimeActivityState`, and `StatusFreshness`, while process state comes from the reconciled stack result. Lives under `src/application/`.
+High-level orchestration lives under `src/application/`.
+
+- `TranscriptionService`: transcribe, title, and write transcripts.
+- `JobWorker`: pull jobs from the queue and call the service.
+- `ManagedWatcherStackReconciler`: authoritative reconciliation of `StackLock`, legacy PID file, live process checks, and unmanaged watcher-like activity into one `ReconciledProcessState`.
+- `WatcherControl`: start/stop/restart orchestration, compact `StatusSnapshot`, detailed watcher status, recent `TranscriptionJob`s, latest transcript lookup, and diagnostic state export.
+- `StatusSnapshot`: separates `WatcherProcessState`, `RuntimeActivityState`, and `StatusFreshness`, while process state comes from the reconciled stack result.
 
 ### Infrastructure
 
@@ -41,7 +47,13 @@ Config, logging, backend adapter, watcher, runtime status: YAML config loader, `
 
 ### CLI
 
-Entry point and commands: `watch` (automatic transcription) and `menu` (simple operational entry point), wired to application services. `menu`, `startAll`, `stopAll`, and launchd autostart all share the same `WatcherControl` single-instance path, so duplicate stacks are refused centrally rather than by per-command heuristics. Lives under `src/cli/`. Additional entry scripts: `startAll`, `stopAll`, `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
+Entry point and commands live under `src/cli/`.
+
+- `index.ts`: main command entry point (`watch`, `menu`, `diagnostics`, etc.).
+- `menu.ts`: terminal rendering, input loop, and live detailed status subview.
+- `menuActions.ts`: applicability checks, confirmations, and execution handlers for menu actions.
+- `startAll`, `stopAll`, and launchd autostart all share the same `WatcherControl` single-instance path, so duplicate stacks are refused centrally rather than by per-command heuristics.
+- Additional entry scripts: `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
 
 ### Python backend
 
@@ -51,8 +63,8 @@ Entry point and commands: `watch` (automatic transcription) and `menu` (simple o
 
 - **`src/domain/`** – AudioFile, TranscriptionJob, TranscriptionJobState, Transcript, TranscriptionJobQueue, WatchConfiguration
 - **`src/infrastructure/`** – config (YAML), logging, backend (MLX Whisper), watcher (FileSystemPoller), status (RuntimeStatus → `runtime/status.json`)
-- **`src/application/`** – TranscriptionService, JobWorker, WatcherControl
-- **`src/cli/`** – CLI entry (`watch`, `menu`), status viewer, startAll, stopAll, ingest, titlePreview
+- **`src/application/`** – TranscriptionService, JobWorker, ManagedWatcherStackReconciler, WatcherControl, StatusSnapshot
+- **`src/cli/`** – CLI entry (`watch`, `menu`), menuActions, status viewer, startAll, stopAll, ingest, titlePreview
 - **`py-backend/`** – MLX Whisper script; `timestamp_preview.py` for one-off formatted preview
 - **`config.yaml`** – main configuration
 - **`UbiquitousLanguageGlossary.md`** – domain glossary

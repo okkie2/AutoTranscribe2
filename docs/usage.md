@@ -75,6 +75,12 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 - **Stack ownership:** `runtime/managed-stack.lock.json` is the `StackLock` for the managed watcher stack. AutoTranscribe2 reconciles that lock with live PIDs and the legacy `.autotranscribe2-pids.json` file before starting, stopping, or reporting process state.
 - **Discovery ledger:** The watcher persists a minimal ledger of already discovered recordings in the transcript output directory so a watcher restart does not re-enqueue the same recording paths again.
 
+## Runtime control internals
+
+- **Reconciliation:** `ManagedWatcherStackReconciler` is the authoritative module for reconciling the `StackLock`, legacy PID file, live process checks, and unmanaged watcher-like activity.
+- **Operational commands:** `WatcherControl` consumes that reconciled result for start, stop, restart, compact `StatusSnapshot`, detailed status, and diagnostic exports.
+- **Menu actions:** `menu.ts` owns terminal I/O and rendering, while `menuActions.ts` owns applicability checks, confirmations, and per-action execution flow.
+
 ## Live status dashboard
 
 When the watcher is running (e.g. via `npm run start:all` or `autotranscribe watch`), you can see what it’s doing without reading logs:

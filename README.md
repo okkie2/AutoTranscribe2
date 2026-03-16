@@ -95,7 +95,7 @@ When the menu is shown or refreshed, a compact `StatusSnapshot` stays visible ab
 
 Menu actions:
 
-- **Show Watcher Status** – shows the detailed static status view from runtime status plus watcher process state.
+- **Show Watcher Status** – shows the detailed live status view from runtime status plus watcher process state.
 - **Start Watcher** – starts the managed watcher stack (`ingest:jpr` + watcher, with Ollama check when configured) only if no valid stack lock already owns runtime control.
 - **Stop Watcher** – stops only the managed watcher stack and cleans lock/PID artifacts when it shuts down cleanly.
 - **Restart Watcher** – stops the managed watcher stack, verifies ownership cleanup, then starts a fresh stack.
@@ -104,6 +104,8 @@ Menu actions:
 - **Exit** – leaves the menu.
 
 The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
+
+Internally, runtime control is now split so `ManagedWatcherStackReconciler` owns process reconciliation, `WatcherControl` owns start/stop/restart orchestration, and the menu delegates action policy to focused handlers instead of one large command switch.
 
 You can still run directly in the foreground if you want the existing command flow. The app stops when you close the terminal or press Ctrl+C.
 
