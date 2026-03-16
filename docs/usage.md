@@ -24,7 +24,7 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 ## Typical workflow
 
 1. Record with Just Press Record or drop a `.m4a` into the recordings folder.
-2. JPR ingester (if running) copies from iCloud into the recordings folder.
+2. JPR ingester (if running) polls the JPR iCloud folder every 3 seconds and copies new recordings into the recordings folder.
 3. Watcher detects the new file.
 4. MLX Whisper transcribes it; a title is generated (Ollama or fallback).
 5. A Markdown transcript appears in the transcripts folder with timestamped paragraphs and the original text at the bottom.
@@ -70,6 +70,7 @@ This installs a launchd plist that runs `npm run start:all` at login. Logs go to
 ### start:all and stop:all
 
 - **start:all:** Builds the project; if title provider is `ollama`, tries to start Ollama; spawns `ingest:jpr` and `autotranscribe watch`; writes child PIDs to `.autotranscribe2-pids.json`.
+- **ingest:jpr:** Polls the configured Just Press Record iCloud folder every 3 seconds, waits for each `.m4a` file to stabilize, then copies it into the recordings folder and removes the source file.
 - **stop:all:** Sends `SIGINT` to those processes using the PID file, then removes the file.
 
 ---

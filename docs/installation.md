@@ -21,7 +21,7 @@ npm install
 npm run start:all
 ```
 
-This builds the project, checks/starts Ollama if configured, starts the JPR ingester and the watcher. Use `npm run stop:all` to stop everything.
+This builds the project, checks/starts Ollama if configured, starts the JPR ingester and the watcher. The JPR ingester polls the configured iCloud folder every 3 seconds for new recordings. Use `npm run stop:all` to stop everything.
 
 ## Installation steps
 
@@ -35,11 +35,15 @@ npm install
 
 ### 2. Python venv and MLX Whisper
 
+The app uses the **mlx-whisper** Python package (tested with **0.4.3**) with the **whisper-large-v3-turbo** model (`mlx-community/whisper-large-v3-turbo`). Create a venv and install:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install mlx-whisper
 ```
+
+To check the installed package version: `./.venv/bin/python -m pip show mlx-whisper` (or use your venv path from `config.yaml`).
 
 ### 3. Configure backend in config.yaml
 

@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import chokidar from "chokidar";
 import { loadConfig } from "../infrastructure/config/YamlConfigLoader.js";
+
+const POLL_INTERVAL_MS = 3_000;
 
 function isHidden(p: string): boolean {
   return path.basename(p).startsWith(".");
@@ -52,12 +53,66 @@ function maybeRemoveEmptyParent(dateDir: string, sourceRoot: string): void {
   }
 }
 
-async function handleFile(filePath: string, sourceRoot: string, destRoot: string): Promise<void> {
+function listAudioFiles(root: string): string[] {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+
+  const files: string[] = [];
+  const stack = [root];
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop();
+    if (!currentDir) {
+      continue;
+    }
+
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("Could not read source directory:", currentDir, message);
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (isHidden(entry.name)) {
+        continue;
+      }
+
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+
+      if (path.extname(entry.name).toLowerCase() === ".m4a") {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  return files.sort();
+}
+
+async function handleFile(
+  filePath: string,
+  sourceRoot: string,
+  destRoot: string,
+  inFlight: Set<string>
+): Promise<void> {
   if (isHidden(filePath)) return;
   const ext = path.extname(filePath).toLowerCase();
   if (ext !== ".m4a") {
     return;
   }
+
+  const resolvedPath = path.resolve(filePath);
+  if (inFlight.has(resolvedPath)) {
+    return;
+  }
+  inFlight.add(resolvedPath);
 
   const dateFolder = path.basename(path.dirname(filePath));
   const baseName = path.basename(filePath);
@@ -99,6 +154,8 @@ async function handleFile(filePath: string, sourceRoot: string, destRoot: string
     } catch {
       // ignore
     }
+  } finally {
+    inFlight.delete(resolvedPath);
   }
 }
 
@@ -114,21 +171,18 @@ async function main() {
   console.log("Watching Just Press Record iCloud folder for new recordings:");
   console.log("  Source:", sourceRoot);
   console.log("  Destination:", destRoot);
+  console.log("  Poll interval:", `${POLL_INTERVAL_MS}ms`);
 
-  const watcher = chokidar.watch(sourceRoot, {
-    persistent: true,
-    ignoreInitial: false,
-    ignored: /(^|[\/\\])\../,
-    depth: 2
-  });
+  const inFlight = new Set<string>();
 
-  watcher.on("add", (filePath) => {
-    void handleFile(filePath, sourceRoot, destRoot);
-  });
+  const processDiscoveredFiles = (): void => {
+    for (const filePath of listAudioFiles(sourceRoot)) {
+      void handleFile(filePath, sourceRoot, destRoot, inFlight);
+    }
+  };
 
-  watcher.on("error", (err) => {
-    console.error("JPR watcher error:", err);
-  });
+  processDiscoveredFiles();
+  setInterval(processDiscoveredFiles, POLL_INTERVAL_MS);
 }
 
 main().catch((err) => {
@@ -136,4 +190,3 @@ main().catch((err) => {
   console.error("ingestJustPressRecord failed:", message);
   process.exit(1);
 });
-
