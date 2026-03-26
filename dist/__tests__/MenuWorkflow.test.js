@@ -69,7 +69,8 @@ test("menu workflow handles status, start, restart, recent jobs, latest transcri
         cwd: rootDir,
         env: {
             ...process.env,
-            AUTOTRANSCRIBE_TEST_MODE: "1"
+            AUTOTRANSCRIBE_TEST_MODE: "1",
+            AUTOTRANSCRIBE_PROCESS_LIST: ""
         },
         stdio: ["pipe", "pipe", "pipe"]
     });
