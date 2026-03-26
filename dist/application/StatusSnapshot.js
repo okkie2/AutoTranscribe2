@@ -1,5 +1,13 @@
 import path from "node:path";
 const STALE_THRESHOLD_MS = 30000;
+const ACTIVE_RUNTIME_STATES = [
+    "waitingForStableFile",
+    "ingesting",
+    "enqueuingJob",
+    "draining",
+    "processingTranscription",
+    "writingTranscript"
+];
 function fallback(value, def = "-") {
     if (value === null || value === undefined)
         return def;
@@ -11,10 +19,28 @@ export function getStatusFreshness(status, thresholdMs = STALE_THRESHOLD_MS) {
     if (!status)
         return "missing";
     const updated = new Date(status.updatedAt).getTime();
-    if (Number.isNaN(updated) || Date.now() - updated > thresholdMs) {
+    const heartbeat = status.lastHeartbeatAt && ACTIVE_RUNTIME_STATES.includes(status.runtimeActivityState)
+        ? new Date(status.lastHeartbeatAt).getTime()
+        : Number.NaN;
+    const freshestTimestamp = Number.isNaN(heartbeat) ? updated : Math.max(updated, heartbeat);
+    if (Number.isNaN(freshestTimestamp) || Date.now() - freshestTimestamp > thresholdMs) {
         return "stale";
     }
     return "fresh";
+}
+function formatTimestamp(value) {
+    if (!value) {
+        return "-";
+    }
+    try {
+        const d = new Date(value);
+        return Number.isNaN(d.getTime())
+            ? "-"
+            : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+    catch {
+        return "-";
+    }
 }
 export function formatDashboardLines(status, statusPath) {
     const statusFreshness = getStatusFreshness(status);
@@ -38,16 +64,8 @@ export function formatDashboardLines(status, statusPath) {
             ]
         };
     }
-    let updatedLabel = "-";
-    try {
-        const d = new Date(status.updatedAt);
-        updatedLabel = Number.isNaN(d.getTime())
-            ? "-"
-            : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    }
-    catch {
-        // keep fallback
-    }
+    const updatedLabel = formatTimestamp(status.updatedAt);
+    const heartbeatLabel = formatTimestamp(status.lastHeartbeatAt);
     return {
         lines: [
             "AutoTranscribe2 status",
@@ -56,7 +74,10 @@ export function formatDashboardLines(status, statusPath) {
             `Freshness: ${statusFreshness}`,
             `Queue length: ${fallback(status.queueLength, "0")}`,
             `Current job: ${fallback(status.currentFile)}`,
+            `Title provider: ${fallback(status.titleProviderState)}`,
+            `Title provider detail: ${fallback(status.titleProviderDetail)}`,
             `Last update: ${updatedLabel}`,
+            `Last heartbeat: ${heartbeatLabel}`,
             `Last error: ${fallback(status.lastError)}`,
             "",
             "Press Ctrl+C to exit."
@@ -82,8 +103,8 @@ export function formatCompactStatusSnapshotLines(snapshot) {
         `Activity: ${fallback(snapshot.runtimeActivityState)}`,
         `Freshness: ${snapshot.statusFreshness}`,
         `Queue: ${snapshot.queueLength !== null ? `${snapshot.queueLength} jobs` : "-"}`,
-        `CurrentJob: ${fallback(snapshot.currentJob)}`,
-        `LatestTranscript: ${fallback(snapshot.latestTranscript)}`,
+        `Current Transcription Job: ${fallback(snapshot.currentJob)}`,
+        `Latest Transcript: ${fallback(snapshot.latestTranscript)}`,
         ""
     ];
 }

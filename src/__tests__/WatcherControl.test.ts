@@ -217,7 +217,7 @@ test("getCompactStatusSnapshot includes watcher process state, queue, and latest
     assert.ok(lines.some((line) => line.includes("Activity: idle")));
     assert.ok(lines.some((line) => line.includes("Freshness: fresh")));
     assert.ok(lines.some((line) => line.includes("Queue: 3 jobs")));
-    assert.ok(lines.some((line) => line.includes("LatestTranscript: latest.md")));
+    assert.ok(lines.some((line) => line.includes("Latest Transcript: latest.md")));
   });
 });
 

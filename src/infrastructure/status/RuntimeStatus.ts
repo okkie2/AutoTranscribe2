@@ -1,12 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 
+export type TitleProviderState = "unknown" | "ready" | "degraded" | "disabled";
+
 export type RuntimeActivityState =
   | "idle"
   | "scanning"
   | "waitingForStableFile"
   | "ingesting"
   | "enqueuingJob"
+  | "draining"
   | "processingTranscription"
   | "writingTranscript"
   | "completed"
@@ -18,8 +21,11 @@ export interface RuntimeStatus {
   currentFile: string | null;
   lastError: string | null;
   updatedAt: string;
+  lastHeartbeatAt?: string | null;
   currentJobId?: string | null;
   currentPhaseDetail?: string | null;
+  titleProviderState?: TitleProviderState | null;
+  titleProviderDetail?: string | null;
 }
 
 const VALID_ACTIVITY_STATES: RuntimeActivityState[] = [
@@ -28,6 +34,7 @@ const VALID_ACTIVITY_STATES: RuntimeActivityState[] = [
   "waitingForStableFile",
   "ingesting",
   "enqueuingJob",
+  "draining",
   "processingTranscription",
   "writingTranscript",
   "completed",
@@ -58,11 +65,17 @@ export function writeStatus(
     queueLength: partial.queueLength ?? existing?.queueLength ?? 0,
     currentFile: partial.currentFile !== undefined ? partial.currentFile : existing?.currentFile ?? null,
     lastError: partial.lastError !== undefined ? partial.lastError : existing?.lastError ?? null,
+    lastHeartbeatAt:
+      partial.lastHeartbeatAt !== undefined ? partial.lastHeartbeatAt : existing?.lastHeartbeatAt ?? null,
     currentJobId: partial.currentJobId !== undefined ? partial.currentJobId : existing?.currentJobId ?? null,
     currentPhaseDetail:
       partial.currentPhaseDetail !== undefined
         ? partial.currentPhaseDetail
         : existing?.currentPhaseDetail ?? null,
+    titleProviderState:
+      partial.titleProviderState !== undefined ? partial.titleProviderState : existing?.titleProviderState ?? null,
+    titleProviderDetail:
+      partial.titleProviderDetail !== undefined ? partial.titleProviderDetail : existing?.titleProviderDetail ?? null,
     updatedAt
   };
   fs.writeFileSync(statusPath, JSON.stringify(next, null, 2), { encoding: "utf8" });
@@ -92,13 +105,43 @@ export function readStatus(statusPath: string): RuntimeStatus | null {
       queueLength: Number(data.queueLength) || 0,
       currentFile: typeof data.currentFile === "string" ? data.currentFile : null,
       lastError: typeof data.lastError === "string" ? data.lastError : null,
+      lastHeartbeatAt: typeof data.lastHeartbeatAt === "string" ? data.lastHeartbeatAt : null,
       currentJobId: typeof data.currentJobId === "string" ? data.currentJobId : null,
       currentPhaseDetail: typeof data.currentPhaseDetail === "string" ? data.currentPhaseDetail : null,
+      titleProviderState: normalizeTitleProviderState(data),
+      titleProviderDetail: typeof data.titleProviderDetail === "string" ? data.titleProviderDetail : null,
       updatedAt: data.updatedAt
     };
   } catch {
     return null;
   }
+}
+
+export function shouldPublishWatcherScanStatus(status: RuntimeStatus | null): boolean {
+  if (!status) {
+    return true;
+  }
+
+  return !["processingTranscription", "writingTranscript"].includes(status.runtimeActivityState);
+}
+
+export function deriveActiveRuntimeActivityState(
+  signal: AbortSignal,
+  phase: "processingTranscription" | "writingTranscript"
+): RuntimeActivityState {
+  if (signal.aborted) {
+    return "draining";
+  }
+
+  return phase;
+}
+
+export function shouldResetWatcherPollLoopToIdle(status: RuntimeStatus | null): boolean {
+  if (!status) {
+    return false;
+  }
+
+  return ["scanning", "enqueuingJob", "completed"].includes(status.runtimeActivityState);
 }
 
 function normalizeRuntimeActivityState(data: Record<string, unknown>): RuntimeActivityState | null {
@@ -114,6 +157,14 @@ function normalizeRuntimeActivityState(data: Record<string, unknown>): RuntimeAc
   }
 
   return activity as RuntimeActivityState;
+}
+
+function normalizeTitleProviderState(data: Record<string, unknown>): TitleProviderState | null {
+  const value = data.titleProviderState;
+  if (value === "unknown" || value === "ready" || value === "degraded" || value === "disabled") {
+    return value;
+  }
+  return null;
 }
 
 function legacyStateToRuntimeActivityState(state: string): RuntimeActivityState {

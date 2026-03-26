@@ -65,7 +65,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 ## Key features
 
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
-- **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point with a compact `StatusSnapshot`, manual refresh, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
+- **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point with a compact `StatusSnapshot`, manual refresh, start/stop/restart, recent Transcription Jobs, and opening the Latest Transcript.
 - **Single-instance runtime guard:** menu control, `npm run start:all`, and launchd autostart all respect the same `ManagedWatcherStack` lock, so duplicate watcher stacks are refused instead of processing the same file multiple times.
 - **Diagnostic tracing:** AutoTranscribe2 writes a lightweight JSONL `Diagnostic Trace` for CLI control flow, state observations, guard decisions, and transcript processing to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl`.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with runtime activity, freshness, queue length, current job, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
@@ -88,10 +88,18 @@ Then choose how you want to run the app:
 **Try quickly** — Use the simple operational entry point first.
 
 ```bash
+./menu
+```
+
+This repo-local launcher works from the repository root without requiring `autotranscribe` on your `PATH`.
+If you prefer the package script or installed CLI, the equivalent commands are:
+
+```bash
+npm run menu
 autotranscribe menu
 ```
 
-When the menu is shown or refreshed, a compact `StatusSnapshot` stays visible above the menu and shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, current job, and the `LatestTranscript` filename.
+When the menu is shown or refreshed, a compact `StatusSnapshot` stays visible above the menu and shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, the current transcription job, and the Latest Transcript filename.
 
 Menu actions:
 
@@ -99,8 +107,8 @@ Menu actions:
 - **Start Watcher** – starts the managed watcher stack (`ingest:jpr` + watcher, with Ollama check when configured) only if no valid stack lock already owns runtime control.
 - **Stop Watcher** – stops only the managed watcher stack and cleans lock/PID artifacts when it shuts down cleanly.
 - **Restart Watcher** – stops the managed watcher stack, verifies ownership cleanup, then starts a fresh stack.
-- **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
-- **Open Latest Transcript** – opens the `LatestTranscript` in the default macOS viewer.
+- **Show Recent Transcription Jobs** – lists recent finished jobs from the existing log file.
+- **Open Latest Transcript** – opens the Latest Transcript in the default macOS viewer.
 - **Exit** – leaves the menu.
 
 The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
@@ -126,16 +134,22 @@ Autostart, the menu, and `start:all` all go through the same runtime ownership g
 
 See [docs/usage.md](docs/usage.md) for full commands and autostart details.
 
-If `autotranscribe` is not yet installed on your `PATH`, the root-local fallback is:
+If shell setup or an installed CLI is unavailable, the root-local fallback is:
 
 ```bash
-npm run menu
+./menu
 ```
 
 To export the latest diagnostic bundle for debugging:
 
 ```bash
 autotranscribe diagnostics
+```
+
+To probe the configured Ollama title endpoint and get the exact failure reason:
+
+```bash
+autotranscribe title-health
 ```
 
 ---

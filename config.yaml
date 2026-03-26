@@ -30,9 +30,9 @@ title:
   language_hint: null
   ollama:
     endpoint: "http://127.0.0.1:11434/api/generate"
-    model: "llama3.1:8b-instruct-q4_K_M"
+    model: "qwen3:14b"
     temperature: 0.2
-    timeout_ms: 20000
+    timeout_ms: 60000
 
 ingest:
   jpr_source_root: "/Users/joostokkinga/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents"
@@ -41,4 +41,3 @@ ingest:
 autostart:
   enabled: true
   label: "com.autotranscribe2.startall"
-

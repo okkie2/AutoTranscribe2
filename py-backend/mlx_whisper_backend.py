@@ -189,6 +189,7 @@ def main() -> int:
   payload = {
     "text": text,
     "formatted_markdown": formatted,
+    "language": result.get("language"),
   }
   sys.stdout.write(json.dumps(payload, ensure_ascii=False))
   return 0
@@ -196,4 +197,3 @@ def main() -> int:
 
 if __name__ == "__main__":
   raise SystemExit(main())
-

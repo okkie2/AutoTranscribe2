@@ -48,7 +48,7 @@ title:
     endpoint: "http://127.0.0.1:11434/api/generate"
     model: "llama3.1:8b-instruct-q4_K_M"
     temperature: 0.2
-    timeout_ms: 20000
+    timeout_ms: 60000
 ```
 
 Then: `brew install ollama`, `ollama pull llama3.1:8b-instruct-q4_K_M`, `brew services start ollama`. If Ollama is unreachable, the app uses `Untitled` and `{timestamp}_Untitled.md`.

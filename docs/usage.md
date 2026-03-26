@@ -21,16 +21,16 @@ autotranscribe menu
 This opens a lightweight interactive menu with exactly these actions:
 
 - A compact `StatusSnapshot` is always visible above the menu whenever it is shown or refreshed.
-- The compact snapshot shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, current job, and the `LatestTranscript` filename when available.
+- The compact snapshot shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, the current transcription job, and the Latest Transcript filename when available.
 - The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
 - Menu actions, `start:all`, and autostart all use the same single-instance `ManagedWatcherStack` guard. If a valid stack lock already owns runtime control, start is refused instead of creating duplicate watcher stacks.
 
-- **Show Watcher Status** – shows the fuller live status view based on `runtime/status.json`, the reconciled `ManagedWatcherStack`, and the current `LatestTranscript`.
+- **Show Watcher Status** – shows the fuller live status view based on `runtime/status.json`, the reconciled `ManagedWatcherStack`, and the current Latest Transcript.
 - **Start Watcher** – checks whether start is currently allowed, asks for confirmation only when it is, then starts the managed watcher stack (`ingest:jpr` + watcher, including the Ollama check when configured).
 - **Stop Watcher** – first checks whether there is anything to stop, asks for confirmation only when stopping is applicable, then stops the managed watcher stack and cleans lock/PID artifacts.
 - **Restart Watcher** – first checks whether there is anything to restart, asks for confirmation only when restarting is applicable, then stops and starts the managed watcher stack.
-- **Show Recent TranscriptionJobs** – lists recent finished jobs from the existing log file.
-- **Open Latest Transcript** – finds the `LatestTranscript` in `watch.output_directory` and opens it with the default macOS viewer.
+- **Show Recent Transcription Jobs** – lists recent finished jobs from the existing log file.
+- **Open Latest Transcript** – finds the Latest Transcript in `watch.output_directory` and opens it with the default macOS viewer.
 - **Exit** – closes the menu.
 
 From the repo root, `npm run menu` is the local fallback if `autotranscribe` is not yet linked onto your `PATH`.
@@ -71,7 +71,8 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 - **Recordings:** Input audio lives in the directory listed in `watch.directories` (default `~/Documents/AutoTranscribe2/recordings`). The JPR ingester writes normalised filenames there.
 - **Transcripts:** Each transcript is written to `watch.output_directory` (default `~/Documents/AutoTranscribe2/transcripts`) as `{timestamp}_{slug}.md` or `{timestamp}_Untitled.md`.
 - **Logs:** Console and file logs go to the path in `logging.log_file` (default `~/Documents/AutoTranscribe2/logs/autotranscribe.log`).
-- **Runtime status:** When the runtime is active, it writes `runtime/status.json` (next to `config.yaml`) with `runtimeActivityState`, queue length, current file, last error, and `updatedAt`. Freshness is derived separately from `updatedAt`.
+- **Runtime status:** When the runtime is active, it writes `runtime/status.json` (next to `config.yaml`) with `runtimeActivityState`, queue length, current file, last error, title-provider state, and `updatedAt`. Freshness is derived separately from `updatedAt`.
+- During stop or restart, a busy watcher may report `draining` while it finishes the current Transcription Job cleanly before exiting.
 - **Stack ownership:** `runtime/managed-stack.lock.json` is the `StackLock` for the managed watcher stack. AutoTranscribe2 reconciles that lock with live PIDs and the legacy `.autotranscribe2-pids.json` file before starting, stopping, or reporting process state.
 - **Discovery ledger:** The watcher persists a minimal ledger of already discovered recordings in the transcript output directory so a watcher restart does not re-enqueue the same recording paths again.
 
@@ -119,7 +120,7 @@ Autostart uses the same single-instance guard as the menu and `start:all`. If a 
 - **start:all:** Loads config, acquires the `StackLock`, checks Ollama when needed, starts `ingest:jpr` and `autotranscribe watch`, then records managed PIDs in both `runtime/managed-stack.lock.json` and the legacy `.autotranscribe2-pids.json`.
 - **ingest:jpr:** Polls the configured Just Press Record iCloud folder every 3 seconds, waits for each `.m4a` file to stabilize, then copies it into the recordings folder and removes the source file.
 - **stop:all:** Reconciles the managed watcher stack, sends `SIGINT` only to the managed processes it owns, and then removes lock/PID artifacts.
-- **menu:** Reuses the same watcher control path for start/stop/restart, plus shows a static `StatusSnapshot`, recent `TranscriptionJob`s, and the `LatestTranscript`.
+- **menu:** Reuses the same watcher control path for start/stop/restart, plus shows a static `StatusSnapshot`, recent Transcription Jobs, and the Latest Transcript.
 
 ---
 

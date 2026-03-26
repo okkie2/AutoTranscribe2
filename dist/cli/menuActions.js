@@ -133,7 +133,7 @@ async function showRecentJobsAction({ renderRecentJobs }) {
     traceEvent({
         event: "command_parsed",
         source: "cli:menu",
-        command: "Show Recent TranscriptionJobs"
+        command: "Show Recent Transcription Jobs"
     });
     renderRecentJobs();
     return { running: true, requiresPause: true };
@@ -146,7 +146,7 @@ async function openLatestTranscriptAction({ config }) {
     });
     console.clear();
     const latestTranscript = openLatestTranscript(config);
-    console.log(`Opened LatestTranscript: ${latestTranscript.transcriptPath}`);
+    console.log(`Opened Latest Transcript: ${latestTranscript.transcriptPath}`);
     console.log("");
     return { running: true, requiresPause: true };
 }
@@ -168,7 +168,7 @@ export const MENU_ACTIONS = {
     "4": restartWatcherAction,
     "Restart Watcher": restartWatcherAction,
     "5": showRecentJobsAction,
-    "Show Recent TranscriptionJobs": showRecentJobsAction,
+    "Show Recent Transcription Jobs": showRecentJobsAction,
     "6": openLatestTranscriptAction,
     "Open Latest Transcript": openLatestTranscriptAction,
     "7": exitAction,

@@ -3,6 +3,7 @@ import chalk from "chalk";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
+import { extractFirstAllowedKey } from "./menuInput.js";
 import { getCompactStatusSnapshotLines, getStatusSnapshot, listRecentTranscriptionJobs } from "../application/WatcherControl.js";
 import { MENU_ACTIONS } from "./menuActions.js";
 const MENU_OPTIONS = [
@@ -10,7 +11,7 @@ const MENU_OPTIONS = [
     "Start Watcher",
     "Stop Watcher",
     "Restart Watcher",
-    "Show Recent TranscriptionJobs",
+    "Show Recent Transcription Jobs",
     "Open Latest Transcript",
     "Exit"
 ];
@@ -72,6 +73,7 @@ function colorizeActivity(activity) {
         case "waitingForStableFile":
         case "ingesting":
         case "enqueuingJob":
+        case "draining":
         case "processingTranscription":
         case "writingTranscript":
             return chalk.yellow;
@@ -144,6 +146,7 @@ async function readMenuSelection(rl) {
     if (!input.isTTY) {
         return (await rl.question("Select an option: ")).trim();
     }
+    const allowedKeys = ["1", "2", "3", "4", "5", "6", "7", "r", "R"];
     output.write("Select an option: ");
     rl.pause();
     const selection = await new Promise((resolve) => {
@@ -163,9 +166,8 @@ async function readMenuSelection(rl) {
                 cleanup("");
                 return;
             }
-            const key = text.trim();
-            if (["1", "2", "3", "4", "5", "6", "7", "r", "R"].includes(key)) {
-                output.write(key);
+            const key = extractFirstAllowedKey(text, allowedKeys);
+            if (key) {
                 cleanup(key);
             }
         };
@@ -179,10 +181,10 @@ async function readMenuSelection(rl) {
 function renderRecentJobs(config) {
     const jobs = listRecentTranscriptionJobs(config);
     console.clear();
-    console.log("Recent TranscriptionJobs");
+    console.log("Recent Transcription Jobs");
     console.log("");
     if (jobs.length === 0) {
-        console.log("No recent TranscriptionJobs found.");
+        console.log("No recent Transcription Jobs found.");
         console.log("");
         return;
     }
@@ -237,6 +239,7 @@ async function confirmAction(rl, actionLabel) {
     output.write(`Are you sure you want to ${actionLabel.toLowerCase()}? (y/n): `);
     rl.pause();
     const confirmed = await new Promise((resolve) => {
+        const allowedKeys = ["y", "Y", "n", "N"];
         const cleanup = (value) => {
             input.off("data", onData);
             input.setRawMode(false);
@@ -252,13 +255,14 @@ async function confirmAction(rl, actionLabel) {
             if (text === "\r" || text === "\n") {
                 return;
             }
-            const key = text.trim();
+            const key = extractFirstAllowedKey(text, allowedKeys);
+            if (!key) {
+                return;
+            }
             if (key === "y" || key === "Y") {
-                output.write(key);
                 cleanup(true);
                 return;
             }
-            output.write(key || "n");
             if (key === "n" || key === "N") {
                 cleanup(false);
             }

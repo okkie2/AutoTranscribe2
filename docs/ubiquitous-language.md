@@ -11,9 +11,13 @@ Core operational terms for the CLI and runtime model:
 - **StackLock**: The filesystem lock record that gives one `ManagedWatcherStack` ownership of runtime control.
 - **StatusSnapshot**: Read model shown to an operator in the menu or status views.
 - **LatestTranscript**: Most recently written transcript artifact in the configured transcript output directory.
+- **Latest Transcript**: Preferred human-facing label for `LatestTranscript` in menu and status output.
+- **Recent Transcription Jobs**: Preferred human-facing label for recent completed `TranscriptionJob` entries in the menu and docs.
 - **WatcherProcessState**: Lifecycle state of the watcher process itself.
 - **ReconciledProcessState**: The authoritative process result derived from lock files, live PIDs, and runtime ownership checks.
 - **RuntimeActivityState**: Current runtime activity being performed by the system.
 - **StatusFreshness**: Freshness of runtime status derived from `updatedAt`.
+- **TitleProviderState**: Operator-facing readiness state for transcript title generation.
+- **Draining**: Preferred operator-facing term for “stop or restart requested, current transcription still finishing cleanly”.
 - **CurrentTranscriptionJob**: Current file or job reference shown to the operator in status output.
 - **Diagnostic Trace**: Structured JSONL event log used to reconstruct control-flow and state-transition behaviour after the fact.

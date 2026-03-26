@@ -37,10 +37,15 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 - **ReconciledProcessState**: The authoritative operational state derived from lock artifacts, managed process liveness, and runtime ownership checks. Current values: `running`, `stopped`, `partial`, `staleLock`, `inconsistent`, `error`.
 
 - **RuntimeActivityState**: The current runtime activity being performed by the system. Distinct from process lifecycle and freshness. Examples: `idle`, `scanning`, `waitingForStableFile`, `ingesting`, `enqueuingJob`, `processingTranscription`, `writingTranscript`, `completed`, `failed`.
+- **Draining**: Preferred operator-facing term for the state where stop/restart has been requested but the current `TranscriptionJob` is still being allowed to finish cleanly.
 
 - **StatusFreshness**: Freshness derived from `updatedAt` on runtime status. Current values: `fresh`, `stale`, `missing`. This is separate from `RuntimeActivityState`.
+- **TitleProviderState**: Operator-facing readiness state for transcript title generation. Current values: `unknown`, `ready`, `degraded`, `disabled`.
 
 - **LatestTranscript**: The most recently written `Transcript` in the configured transcript output directory. Used by operational flows that need to open or inspect the newest result quickly.
+- **Latest Transcript**: Preferred human-facing CLI and documentation label for the `LatestTranscript` concept.
+
+- **Recent Transcription Jobs**: Preferred human-facing CLI and documentation label for a list of recently completed `TranscriptionJob` records. Avoid the mixed form `TranscriptionJobs` in operator-facing text.
 
 - **CurrentTranscriptionJob**: The currently active file or job reference shown to an operator in status views. In the current CLI this is represented by `currentFile` and, when available, `currentJobId`.
 

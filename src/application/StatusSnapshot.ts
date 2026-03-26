@@ -5,6 +5,14 @@ import type { LatestTranscript, WatcherProcessState } from "./WatcherControl.js"
 export type StatusFreshness = "fresh" | "stale" | "missing";
 
 const STALE_THRESHOLD_MS = 30_000;
+const ACTIVE_RUNTIME_STATES: RuntimeActivityState[] = [
+  "waitingForStableFile",
+  "ingesting",
+  "enqueuingJob",
+  "draining",
+  "processingTranscription",
+  "writingTranscript"
+];
 
 export interface CompactStatusSnapshot {
   watcherProcessState: WatcherProcessState;
@@ -27,10 +35,31 @@ export function getStatusFreshness(
 ): StatusFreshness {
   if (!status) return "missing";
   const updated = new Date(status.updatedAt).getTime();
-  if (Number.isNaN(updated) || Date.now() - updated > thresholdMs) {
+  const heartbeat =
+    status.lastHeartbeatAt && ACTIVE_RUNTIME_STATES.includes(status.runtimeActivityState)
+      ? new Date(status.lastHeartbeatAt).getTime()
+      : Number.NaN;
+  const freshestTimestamp = Number.isNaN(heartbeat) ? updated : Math.max(updated, heartbeat);
+
+  if (Number.isNaN(freshestTimestamp) || Date.now() - freshestTimestamp > thresholdMs) {
     return "stale";
   }
   return "fresh";
+}
+
+function formatTimestamp(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+
+  try {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime())
+      ? "-"
+      : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch {
+    return "-";
+  }
 }
 
 export function formatDashboardLines(
@@ -60,15 +89,8 @@ export function formatDashboardLines(
     };
   }
 
-  let updatedLabel = "-";
-  try {
-    const d = new Date(status.updatedAt);
-    updatedLabel = Number.isNaN(d.getTime())
-      ? "-"
-      : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  } catch {
-    // keep fallback
-  }
+  const updatedLabel = formatTimestamp(status.updatedAt);
+  const heartbeatLabel = formatTimestamp(status.lastHeartbeatAt);
 
   return {
     lines: [
@@ -78,7 +100,10 @@ export function formatDashboardLines(
       `Freshness: ${statusFreshness}`,
       `Queue length: ${fallback(status.queueLength, "0")}`,
       `Current job: ${fallback(status.currentFile)}`,
+      `Title provider: ${fallback(status.titleProviderState)}`,
+      `Title provider detail: ${fallback(status.titleProviderDetail)}`,
       `Last update: ${updatedLabel}`,
+      `Last heartbeat: ${heartbeatLabel}`,
       `Last error: ${fallback(status.lastError)}`,
       "",
       "Press Ctrl+C to exit."
@@ -110,8 +135,8 @@ export function formatCompactStatusSnapshotLines(snapshot: CompactStatusSnapshot
     `Activity: ${fallback(snapshot.runtimeActivityState)}`,
     `Freshness: ${snapshot.statusFreshness}`,
     `Queue: ${snapshot.queueLength !== null ? `${snapshot.queueLength} jobs` : "-"}`,
-    `CurrentJob: ${fallback(snapshot.currentJob)}`,
-    `LatestTranscript: ${fallback(snapshot.latestTranscript)}`,
+    `Current Transcription Job: ${fallback(snapshot.currentJob)}`,
+    `Latest Transcript: ${fallback(snapshot.latestTranscript)}`,
     ""
   ];
 }

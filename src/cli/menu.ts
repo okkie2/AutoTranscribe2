@@ -5,6 +5,7 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import type { AppConfig } from "../infrastructure/config/AppConfig.js";
 import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
+import { extractFirstAllowedKey } from "./menuInput.js";
 import {
   getCompactStatusSnapshotLines,
   getStatusSnapshot,
@@ -19,7 +20,7 @@ const MENU_OPTIONS = [
   "Start Watcher",
   "Stop Watcher",
   "Restart Watcher",
-  "Show Recent TranscriptionJobs",
+  "Show Recent Transcription Jobs",
   "Open Latest Transcript",
   "Exit"
 ] as const;
@@ -86,6 +87,7 @@ function colorizeActivity(activity: string | null): (text: string) => string {
     case "waitingForStableFile":
     case "ingesting":
     case "enqueuingJob":
+    case "draining":
     case "processingTranscription":
     case "writingTranscript":
       return chalk.yellow;
@@ -165,6 +167,7 @@ async function readMenuSelection(rl: readline.Interface): Promise<string> {
     return (await rl.question("Select an option: ")).trim();
   }
 
+  const allowedKeys = ["1", "2", "3", "4", "5", "6", "7", "r", "R"] as const;
   output.write("Select an option: ");
   rl.pause();
 
@@ -189,9 +192,8 @@ async function readMenuSelection(rl: readline.Interface): Promise<string> {
         return;
       }
 
-      const key = text.trim();
-      if (["1", "2", "3", "4", "5", "6", "7", "r", "R"].includes(key)) {
-        output.write(key);
+      const key = extractFirstAllowedKey(text, allowedKeys);
+      if (key) {
         cleanup(key);
       }
     };
@@ -208,11 +210,11 @@ async function readMenuSelection(rl: readline.Interface): Promise<string> {
 function renderRecentJobs(config: AppConfig): void {
   const jobs = listRecentTranscriptionJobs(config);
   console.clear();
-  console.log("Recent TranscriptionJobs");
+  console.log("Recent Transcription Jobs");
   console.log("");
 
   if (jobs.length === 0) {
-    console.log("No recent TranscriptionJobs found.");
+    console.log("No recent Transcription Jobs found.");
     console.log("");
     return;
   }
@@ -279,6 +281,8 @@ async function confirmAction(rl: readline.Interface, actionLabel: string): Promi
   rl.pause();
 
   const confirmed = await new Promise<boolean>((resolve) => {
+    const allowedKeys = ["y", "Y", "n", "N"] as const;
+
     const cleanup = (value: boolean): void => {
       input.off("data", onData);
       input.setRawMode(false);
@@ -298,14 +302,16 @@ async function confirmAction(rl: readline.Interface, actionLabel: string): Promi
         return;
       }
 
-      const key = text.trim();
+      const key = extractFirstAllowedKey(text, allowedKeys);
+      if (!key) {
+        return;
+      }
+
       if (key === "y" || key === "Y") {
-        output.write(key);
         cleanup(true);
         return;
       }
 
-      output.write(key || "n");
       if (key === "n" || key === "N") {
         cleanup(false);
       }

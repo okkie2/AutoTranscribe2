@@ -6,6 +6,7 @@ const VALID_ACTIVITY_STATES = [
     "waitingForStableFile",
     "ingesting",
     "enqueuingJob",
+    "draining",
     "processingTranscription",
     "writingTranscript",
     "completed",
@@ -28,10 +29,13 @@ export function writeStatus(statusPath, partial) {
         queueLength: partial.queueLength ?? existing?.queueLength ?? 0,
         currentFile: partial.currentFile !== undefined ? partial.currentFile : existing?.currentFile ?? null,
         lastError: partial.lastError !== undefined ? partial.lastError : existing?.lastError ?? null,
+        lastHeartbeatAt: partial.lastHeartbeatAt !== undefined ? partial.lastHeartbeatAt : existing?.lastHeartbeatAt ?? null,
         currentJobId: partial.currentJobId !== undefined ? partial.currentJobId : existing?.currentJobId ?? null,
         currentPhaseDetail: partial.currentPhaseDetail !== undefined
             ? partial.currentPhaseDetail
             : existing?.currentPhaseDetail ?? null,
+        titleProviderState: partial.titleProviderState !== undefined ? partial.titleProviderState : existing?.titleProviderState ?? null,
+        titleProviderDetail: partial.titleProviderDetail !== undefined ? partial.titleProviderDetail : existing?.titleProviderDetail ?? null,
         updatedAt
     };
     fs.writeFileSync(statusPath, JSON.stringify(next, null, 2), { encoding: "utf8" });
@@ -56,14 +60,35 @@ export function readStatus(statusPath) {
             queueLength: Number(data.queueLength) || 0,
             currentFile: typeof data.currentFile === "string" ? data.currentFile : null,
             lastError: typeof data.lastError === "string" ? data.lastError : null,
+            lastHeartbeatAt: typeof data.lastHeartbeatAt === "string" ? data.lastHeartbeatAt : null,
             currentJobId: typeof data.currentJobId === "string" ? data.currentJobId : null,
             currentPhaseDetail: typeof data.currentPhaseDetail === "string" ? data.currentPhaseDetail : null,
+            titleProviderState: normalizeTitleProviderState(data),
+            titleProviderDetail: typeof data.titleProviderDetail === "string" ? data.titleProviderDetail : null,
             updatedAt: data.updatedAt
         };
     }
     catch {
         return null;
     }
+}
+export function shouldPublishWatcherScanStatus(status) {
+    if (!status) {
+        return true;
+    }
+    return !["processingTranscription", "writingTranscript"].includes(status.runtimeActivityState);
+}
+export function deriveActiveRuntimeActivityState(signal, phase) {
+    if (signal.aborted) {
+        return "draining";
+    }
+    return phase;
+}
+export function shouldResetWatcherPollLoopToIdle(status) {
+    if (!status) {
+        return false;
+    }
+    return ["scanning", "enqueuingJob", "completed"].includes(status.runtimeActivityState);
 }
 function normalizeRuntimeActivityState(data) {
     const activity = typeof data.runtimeActivityState === "string"
@@ -75,6 +100,13 @@ function normalizeRuntimeActivityState(data) {
         return null;
     }
     return activity;
+}
+function normalizeTitleProviderState(data) {
+    const value = data.titleProviderState;
+    if (value === "unknown" || value === "ready" || value === "degraded" || value === "disabled") {
+        return value;
+    }
+    return null;
 }
 function legacyStateToRuntimeActivityState(state) {
     switch (state) {

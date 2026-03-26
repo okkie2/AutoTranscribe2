@@ -15,7 +15,7 @@ The repository already has watcher control commands (`watch`, `start:all`, `stop
   - Start Watcher
   - Stop Watcher
   - Restart Watcher
-  - Show Recent TranscriptionJobs
+  - Show Recent Transcription Jobs
   - Open Latest Transcript
   - Exit
 - Reuse existing watcher control and runtime status logic rather than duplicating it.

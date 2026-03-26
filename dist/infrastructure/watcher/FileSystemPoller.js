@@ -10,13 +10,15 @@ const DISCOVERY_LEDGER_FILENAME = "discovered-audio-files.json";
  * It tracks seen files in-memory for the lifetime of the process.
  */
 export class FileSystemPoller {
-    constructor(config, queue, logger, defaultLanguageHint, statusUpdater) {
+    constructor(config, queue, logger, defaultLanguageHint, statusUpdater, jobLedger) {
         this.config = config;
         this.queue = queue;
         this.logger = logger;
         this.defaultLanguageHint = defaultLanguageHint;
         this.statusUpdater = statusUpdater;
+        this.jobLedger = jobLedger;
         this.seenFiles = new Set();
+        this.pendingFiles = new Map();
         this.discoveryLedgerPath = path.join(path.resolve(this.config.outputDirectory), DISCOVERY_LEDGER_FILENAME);
         this.loadDiscoveryLedger();
     }
@@ -79,6 +81,18 @@ export class FileSystemPoller {
             return { path: filePath };
         }
     }
+    readStableFingerprint(filePath) {
+        try {
+            const stat = fs.statSync(filePath);
+            return {
+                size: stat.size,
+                mtimeMs: stat.mtimeMs
+            };
+        }
+        catch {
+            return null;
+        }
+    }
     scanDirectory(rootDir, currentDir) {
         const entries = fs.readdirSync(currentDir, { withFileTypes: true });
         for (const entry of entries) {
@@ -102,6 +116,28 @@ export class FileSystemPoller {
                 });
                 continue;
             }
+            const currentFingerprint = this.readStableFingerprint(resolved);
+            const pendingFingerprint = this.pendingFiles.get(resolved);
+            if (!currentFingerprint ||
+                !pendingFingerprint ||
+                pendingFingerprint.size !== currentFingerprint.size ||
+                pendingFingerprint.mtimeMs !== currentFingerprint.mtimeMs) {
+                if (currentFingerprint) {
+                    this.pendingFiles.set(resolved, currentFingerprint);
+                }
+                else {
+                    this.pendingFiles.delete(resolved);
+                }
+                this.statusUpdater?.({
+                    runtimeActivityState: "waitingForStableFile",
+                    queueLength: this.queue.getLength(),
+                    currentFile: path.basename(resolved),
+                    currentPhaseDetail: "watch stability check",
+                    lastError: null
+                });
+                continue;
+            }
+            this.pendingFiles.delete(resolved);
             if (this.transcriptAlreadyExists(rootDir, resolved)) {
                 this.logger.info("Skipping audio file because transcript already exists", {
                     audioFile: resolved
@@ -118,8 +154,6 @@ export class FileSystemPoller {
                 this.persistDiscoveryLedger();
                 continue;
             }
-            this.seenFiles.add(resolved);
-            this.persistDiscoveryLedger();
             const audioFile = { path: resolved };
             const targetTranscriptPath = this.computeTargetTranscriptPath(rootDir, resolved);
             const job = {
@@ -131,6 +165,18 @@ export class FileSystemPoller {
                 languageHint: this.defaultLanguageHint,
                 targetTranscriptPath
             };
+            try {
+                this.jobLedger?.record(job);
+            }
+            catch (error) {
+                this.logger.error("Failed to record transcription job in durable ledger; retrying on next scan", {
+                    audioFile: resolved,
+                    error: error instanceof Error ? error.message : String(error)
+                });
+                continue;
+            }
+            this.seenFiles.add(resolved);
+            this.persistDiscoveryLedger();
             this.logger.info("Enqueuing transcription job for discovered audio file", {
                 jobId: job.id,
                 audioFile: job.audioFile.path,

@@ -37,6 +37,7 @@ test("FileSystemPoller does not rediscover the same audio file after restart whe
   const firstQueue = new TranscriptionJobQueue();
   const firstPoller = new FileSystemPoller(config, firstQueue, logger, null);
   firstPoller.scanOnce();
+  firstPoller.scanOnce();
   assert.equal(firstQueue.getLength(), 1);
 
   const secondQueue = new TranscriptionJobQueue();
@@ -48,4 +49,38 @@ test("FileSystemPoller does not rediscover the same audio file after restart whe
   assert.equal(fs.existsSync(ledgerPath), true);
   const ledgerEntries = JSON.parse(fs.readFileSync(ledgerPath, "utf8")) as string[];
   assert.deepEqual(ledgerEntries, [path.resolve(audioPath)]);
+});
+
+test("FileSystemPoller waits for a file to remain unchanged across scans before enqueueing it", () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "autotranscribe2-poller-stable-"));
+  const recordingsDir = path.join(rootDir, "recordings");
+  const transcriptsDir = path.join(rootDir, "transcripts");
+  fs.mkdirSync(recordingsDir, { recursive: true });
+  fs.mkdirSync(transcriptsDir, { recursive: true });
+
+  const audioPath = path.join(recordingsDir, "2026-03-26_15-00-00.m4a");
+  fs.writeFileSync(audioPath, "part-one", "utf8");
+
+  const config = {
+    enabled: true,
+    directories: [recordingsDir],
+    includeExtensions: [".m4a"],
+    excludePatterns: [],
+    pollingIntervalSeconds: 10,
+    outputDirectory: transcriptsDir,
+    mirrorSourceStructure: true
+  };
+
+  const queue = new TranscriptionJobQueue();
+  const poller = new FileSystemPoller(config, queue, logger, null);
+
+  poller.scanOnce();
+  assert.equal(queue.getLength(), 0);
+
+  fs.writeFileSync(audioPath, "part-two-with-more-bytes", "utf8");
+  poller.scanOnce();
+  assert.equal(queue.getLength(), 0);
+
+  poller.scanOnce();
+  assert.equal(queue.getLength(), 1);
 });

@@ -7,12 +7,28 @@ import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
 import { isPidRunning, reconcileManagedWatcherStack, removeLegacyPidFile, removeStackLock, tryCreateStackLock, writeLegacyPidFile, writeStackLock } from "./ManagedWatcherStackReconciler.js";
 import { buildCompactStatusSnapshot, formatCompactStatusSnapshotLines, formatDashboardLines } from "./StatusSnapshot.js";
 const STARTUP_STABILIZE_MS = 400;
-const STOP_TIMEOUT_MS = 10000;
+const STOP_TIMEOUT_MS = 180000;
 const STOP_POLL_INTERVAL_MS = 250;
 const RECENT_JOB_LIMIT = 5;
+const OLLAMA_HEALTHCHECK_TIMEOUT_MS = 5000;
+const TEST_MODE_ENV = "AUTOTRANSCRIBE_TEST_MODE";
+const TEST_WATCH_PID = 41001;
+const TEST_INGEST_PID = 41002;
 export { reconcileManagedWatcherStack } from "./ManagedWatcherStackReconciler.js";
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function isTestMode() {
+    return process.env[TEST_MODE_ENV] === "1";
+}
+function setSimulatedManagedProcessList(watchPid, ingestPid) {
+    process.env.AUTOTRANSCRIBE_PROCESS_LIST = [
+        `${watchPid} node dist/cli/index.js watch`,
+        `${ingestPid} node dist/cli/ingestJustPressRecord.js`
+    ].join("\n");
+}
+function clearSimulatedManagedProcessList() {
+    process.env.AUTOTRANSCRIBE_PROCESS_LIST = "";
 }
 export function getDiagnosticStateSnapshot(config) {
     const status = readStatus(config.runtimeStatusPath);
@@ -90,17 +106,11 @@ export async function ensureOllamaRunning(config) {
     const endpoint = title.ollama.endpoint;
     console.log(`[WatcherControl] Checking Ollama service at ${endpoint}...`);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), OLLAMA_HEALTHCHECK_TIMEOUT_MS);
+    const healthcheckUrl = new URL("/api/tags", endpoint).toString();
     try {
-        const res = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                model: title.ollama.model,
-                prompt: "healthcheck",
-                stream: false,
-                options: { temperature: 0 }
-            }),
+        const res = await fetch(healthcheckUrl, {
+            method: "GET",
             signal: controller.signal
         });
         clearTimeout(timeout);
@@ -108,15 +118,27 @@ export async function ensureOllamaRunning(config) {
             console.log("[WatcherControl] Ollama is reachable.");
             return;
         }
-        attemptStartOllama();
+        attemptStartOllama(`health check returned HTTP ${res.status}`);
     }
-    catch {
+    catch (error) {
         clearTimeout(timeout);
-        attemptStartOllama();
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.toLowerCase().includes("aborted")) {
+            console.log("[WatcherControl] Ollama health check timed out; continuing without restarting the service.");
+            return;
+        }
+        if (message.includes("ECONNREFUSED") ||
+            message.includes("ENOTFOUND") ||
+            message.includes("fetch failed")) {
+            attemptStartOllama(message);
+            return;
+        }
+        console.log(`[WatcherControl] Ollama health check failed (${message}); continuing without restarting the service.`);
     }
 }
-function attemptStartOllama() {
-    console.log("[WatcherControl] Ollama not reachable; attempting to start via 'brew services start ollama'...");
+function attemptStartOllama(reason) {
+    const suffix = reason ? ` (${reason})` : "";
+    console.log(`[WatcherControl] Ollama not reachable${suffix}; attempting to start via 'brew services start ollama'...`);
     try {
         const result = spawnSync("brew", ["services", "start", "ollama"], {
             stdio: "inherit"
@@ -193,6 +215,20 @@ export async function startWatcherControl(config) {
     acquireManagedStackLock(config);
     console.log("[WatcherControl] Starting AutoTranscribe2 watcher control (Ollama + ingest:jpr + watcher)...");
     try {
+        if (isTestMode()) {
+            setSimulatedManagedProcessList(TEST_WATCH_PID, TEST_INGEST_PID);
+            persistManagedStack(config, TEST_WATCH_PID, TEST_INGEST_PID);
+            traceObservedState(config, "WatcherControl", "start");
+            traceEvent({
+                event: "start_succeeded",
+                source: "WatcherControl",
+                command: "start",
+                observed_state: getDiagnosticStateSnapshot(config),
+                metadata: { watchPid: TEST_WATCH_PID, ingestPid: TEST_INGEST_PID, simulated: true }
+            });
+            console.log("[WatcherControl] Started ingest:jpr (PID:", TEST_INGEST_PID, "), watcher (PID:", TEST_WATCH_PID, ").");
+            return;
+        }
         await ensureOllamaRunning(config);
         const ingest = spawn(process.execPath, ["dist/cli/ingestJustPressRecord.js"], {
             stdio: "ignore",
@@ -278,6 +314,9 @@ export async function stopWatcherControl(config) {
     }
     if (reconciliation.reconciledProcessState === "staleLock") {
         cleanupStackArtifacts(config);
+        if (isTestMode()) {
+            clearSimulatedManagedProcessList();
+        }
         traceEvent({
             event: "stop_skipped_already_stopped",
             source: "WatcherControl",
@@ -286,6 +325,19 @@ export async function stopWatcherControl(config) {
             metadata: { staleArtifactsCleaned: true }
         });
         console.log("[WatcherControl] Cleaned up stale stack artifacts.");
+        return;
+    }
+    if (isTestMode()) {
+        clearSimulatedManagedProcessList();
+        cleanupStackArtifacts(config);
+        traceObservedState(config, "WatcherControl", "stop");
+        traceEvent({
+            event: "stop_succeeded",
+            source: "WatcherControl",
+            command: "stop",
+            observed_state: getDiagnosticStateSnapshot(config),
+            metadata: { simulated: true }
+        });
         return;
     }
     const targets = [
@@ -304,6 +356,7 @@ export async function stopWatcherControl(config) {
             console.error(`[WatcherControl] Failed to signal ${target.name}:`, message);
         }
     }
+    console.log(`[WatcherControl] Waiting up to ${Math.round(STOP_TIMEOUT_MS / 1000)}s for the current transcription work to stop cleanly.`);
     const deadline = Date.now() + STOP_TIMEOUT_MS;
     while ((isPidRunning(reconciliation.watchPid) || isPidRunning(reconciliation.ingestPid)) &&
         Date.now() < deadline) {
@@ -318,7 +371,7 @@ export async function stopWatcherControl(config) {
             observed_state: getDiagnosticStateSnapshot(config),
             metadata: { reason: "managed processes still alive after stop timeout" }
         });
-        throw new Error("Managed watcher stack did not stop cleanly.");
+        throw new Error(`Managed watcher stack did not stop cleanly within ${Math.round(STOP_TIMEOUT_MS / 1000)}s.`);
     }
     traceObservedState(config, "WatcherControl", "stop");
     traceEvent({
@@ -430,6 +483,9 @@ export function openLatestTranscript(config) {
     const latestTranscript = getLatestTranscript(config);
     if (!latestTranscript) {
         throw new Error("No transcript found in the configured output directory.");
+    }
+    if (isTestMode()) {
+        return latestTranscript;
     }
     if (process.platform === "darwin") {
         const result = spawnSync("open", [latestTranscript.transcriptPath], { stdio: "ignore" });

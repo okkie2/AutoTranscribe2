@@ -78,6 +78,10 @@ export function removeStackLock(config) {
 export function isPidRunning(pid) {
     if (!pid)
         return false;
+    const overridden = process.env.AUTOTRANSCRIBE_PROCESS_LIST;
+    if (overridden !== undefined && overridden.trim() !== "") {
+        return listWatcherLikeProcesses().some((entry) => entry.pid === pid);
+    }
     try {
         process.kill(pid, 0);
         return true;
