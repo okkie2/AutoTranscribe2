@@ -84,3 +84,35 @@ test("FileSystemPoller waits for a file to remain unchanged across scans before 
   poller.scanOnce();
   assert.equal(queue.getLength(), 1);
 });
+
+test("FileSystemPoller ignores hidden ingest temp files even when they match an audio extension", () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "autotranscribe2-poller-hidden-"));
+  const recordingsDir = path.join(rootDir, "recordings");
+  const transcriptsDir = path.join(rootDir, "transcripts");
+  fs.mkdirSync(recordingsDir, { recursive: true });
+  fs.mkdirSync(transcriptsDir, { recursive: true });
+
+  const tempAudioPath = path.join(recordingsDir, ".tmp_12345_2026-03-26_15-00-00.m4a");
+  fs.writeFileSync(tempAudioPath, "fake audio", "utf8");
+
+  const config = {
+    enabled: true,
+    directories: [recordingsDir],
+    includeExtensions: [".m4a"],
+    excludePatterns: [],
+    pollingIntervalSeconds: 10,
+    outputDirectory: transcriptsDir,
+    mirrorSourceStructure: true
+  };
+
+  const queue = new TranscriptionJobQueue();
+  const poller = new FileSystemPoller(config, queue, logger, null);
+
+  poller.scanOnce();
+  poller.scanOnce();
+
+  assert.equal(queue.getLength(), 0);
+
+  const ledgerPath = path.join(transcriptsDir, "discovered-audio-files.json");
+  assert.equal(fs.existsSync(ledgerPath), false);
+});

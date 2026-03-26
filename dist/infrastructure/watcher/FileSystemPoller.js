@@ -96,6 +96,9 @@ export class FileSystemPoller {
     scanDirectory(rootDir, currentDir) {
         const entries = fs.readdirSync(currentDir, { withFileTypes: true });
         for (const entry of entries) {
+            if (this.shouldIgnoreEntry(entry.name)) {
+                continue;
+            }
             const fullPath = path.join(currentDir, entry.name);
             if (entry.isDirectory()) {
                 this.scanDirectory(rootDir, fullPath);
@@ -214,6 +217,12 @@ export class FileSystemPoller {
             }
         }
         return true;
+    }
+    shouldIgnoreEntry(entryName) {
+        if (entryName.startsWith(".")) {
+            return true;
+        }
+        return entryName.startsWith("~");
     }
     computeTargetTranscriptPath(rootDir, audioFilePath) {
         const outputRoot = path.resolve(this.config.outputDirectory);
