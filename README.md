@@ -173,6 +173,13 @@ autotranscribe title-health
 
 ## Documentation
 
+**Install and uninstall guides:**
+
+| Guide | Description |
+|-------|-------------|
+| [INSTALL.md](INSTALL.md) | Step-by-step fresh install: compatibility check, all dependencies, configuration, autostart |
+| [UNINSTALL.md](UNINSTALL.md) | Complete removal guide with per-component checklist |
+
 Wiki-ready docs under `docs/` (can be synced to GitHub Wiki):
 
 | Page | Description |

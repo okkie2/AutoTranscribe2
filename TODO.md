@@ -50,8 +50,9 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
   - First direction: explore a small macOS menu bar or status item.
 
 - **CLI installation**
-  - Provide a simple way to make `autotranscribe` available on `$PATH`.
-  - Document `npm link` or provide a one-step install script.
+  - `INSTALL.md` documents the full install sequence including `npm link` for PATH access.
+  - `UNINSTALL.md` covers complete removal with a per-component checklist.
+  - A scripted installer (`install.sh`) that automates the steps in INSTALL.md remains a future option.
 
 ---
 
