@@ -31,11 +31,11 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
   - Likely solution: suffix numbering (`_1`, `_2`, ...).
 
 - **Watcher robustness**
-  - Handle failed jobs cleanly.
-  - Avoid reprocessing the same files.
+  - Handle failed jobs cleanly (failed jobs remain in the ledger and must be removed manually to retry).
   - Make watcher behaviour resilient if the backend crashes or a file is incomplete.
-  - Revisit whether the discovery ledger should expire or compact old entries once restart-driven re-enqueue issues are confirmed resolved.
+  - Revisit whether the discovery ledger should expire or compact old entries over time.
   - Review `Diagnostic Trace` sessions from real user runs and trim any low-signal events that do not help reconstruct state transitions.
+  - *(Resolved: duplicate suppression via durable job claims; restart-driven re-enqueue no longer an issue.)*
 
 ---
 

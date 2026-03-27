@@ -5,7 +5,7 @@ All configuration is in `config.yaml` in the project root. The application creat
 ## Key config sections
 
 - **`watch`** – `directories`, `output_directory`, `include_extensions`, `polling_interval_seconds`, `mirror_source_structure`
-- **`backend`** – `python_executable`, `script_path`, `language_hint`
+- **`backend`** – `type` (`parakeet` | `mlx_whisper`), `python_executable`, `script_path`, `language_hint`; switch from the menu or edit `config.yaml` directly
 - **`logging`** – `level`, `log_file`, `console`
 - **`title`** – `enabled`, `provider` (`ollama` | `heuristic` | `none`), `ollama` endpoint/model
 - **`ingest`** – `jpr_source_root`, `recordings_root`
@@ -46,12 +46,12 @@ title:
   max_words: 5
   ollama:
     endpoint: "http://127.0.0.1:11434/api/generate"
-    model: "llama3.1:8b-instruct-q4_K_M"
+    model: "qwen3:14b"
     temperature: 0.2
     timeout_ms: 60000
 ```
 
-Then: `brew install ollama`, `ollama pull llama3.1:8b-instruct-q4_K_M`, `brew services start ollama`. If Ollama is unreachable, the app uses `Untitled` and `{timestamp}_Untitled.md`.
+Install Ollama from https://ollama.com/download, then: `ollama pull qwen3:14b`. If Ollama is unreachable, the app uses a heuristic title and falls back to `{timestamp}_Untitled.md`.
 
 ## Ingestion-related config
 

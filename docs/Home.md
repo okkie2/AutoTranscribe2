@@ -1,13 +1,13 @@
 # AutoTranscribe2
 
-AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It converts audio recordings into clean, readable Markdown transcripts using on-device Whisper. Drop audio files into a folder and they become structured notes with timestamps and titles. Everything runs locally — no cloud, no uploads.
+AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It converts audio recordings into clean, readable Markdown transcripts using on-device speech-to-text (Parakeet MLX or Whisper). Drop audio files into a folder and they become structured notes with timestamps and titles. Everything runs locally — no cloud, no uploads.
 
 ## What this does for you
 
 1. Record audio (e.g. Just Press Record on your phone).
 2. The recording syncs to your Mac via iCloud.
 3. AutoTranscribe2 picks it up from iCloud and detects the new file.
-4. Whisper transcribes it locally.
+4. Parakeet MLX (or Whisper) transcribes it locally.
 5. A titled Markdown transcript appears in your transcripts folder.
 
 You get a structured note you can read, search, and store in your notes system.
@@ -59,7 +59,8 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
 - **Simple operational menu:** `autotranscribe menu` opens the `WatcherControl` menu with an always-visible compact `StatusSnapshot`, manual refresh, status, start/stop/restart, recent Transcription Jobs, and the Latest Transcript.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms (activity, freshness, queue, current job; data from `runtime/status.json`). Press Ctrl+C to exit.
-- **MLX Whisper** on Apple Silicon (Python package **mlx-whisper** 0.4.x, e.g. 0.4.3; model `mlx-community/whisper-large-v3-turbo`); optional Ollama for titles
+- **Parakeet MLX or MLX Whisper** on Apple Silicon; switch backend from the menu or via `config.yaml`; optional Ollama for titles
+- **Switch Backend:** menu option toggles between Parakeet MLX (recommended, 3× faster, lower WER) and MLX Whisper; takes effect on next watcher start
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
 - **JPR ingestion** via lightweight polling of the iCloud folder, plus **unified start/stop** (`npm run start:all` / `stop:all`)
 

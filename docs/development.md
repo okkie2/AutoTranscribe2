@@ -29,7 +29,7 @@ Integration testing for the automatic (watch) flow is manual: run the watcher, a
 
 ## Testing commands
 
-- **Unit tests:** `npm test` – runs build and the TranscriptTitleFormatter, status, and WatcherControl unit tests.
+- **Unit tests:** `npm test` – runs build and all unit tests (14 test files, 54 tests covering backend factory, config writer, transcript formatting, transcription workflow, job ledger recovery, menu input/workflow, status dashboard, job worker heartbeat, watcher control, diagnostics, file system poller, and Ollama title suggester).
 - **Live status:** When the watcher is running, `npm run status` shows a live-updating terminal dashboard (refreshes every 500 ms; press Ctrl+C to exit). Data is read from `runtime/status.json`.
 - **Runtime control structure:** `ManagedWatcherSupervisorState` is the primary lifecycle truth, `ManagedWatcherStackReconciler` validates that truth against live processes and fallback artifacts, `WatcherControl` orchestrates start/stop/restart, and `menuActions.ts` keeps operational menu policy separate from terminal rendering in `menu.ts`.
 
