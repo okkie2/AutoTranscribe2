@@ -2,3 +2,5 @@
 node_modules/
 .autotranscribe2-pids.json
 runtime/
+__pycache__/
+*.pyc
