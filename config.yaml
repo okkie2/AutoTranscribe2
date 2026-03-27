@@ -9,9 +9,9 @@ watch:
   mirror_source_structure: true
 
 backend:
-  type: "mlx_whisper"
+  type: "parakeet"
   python_executable: "/Users/joostokkinga/Code/AutoTranscribe2/.venv/bin/python"
-  script_path: "./py-backend/mlx_whisper_backend.py"
+  script_path: "./py-backend/parakeet_backend.py"
   language_hint: null
   options:
     model_size: "medium"

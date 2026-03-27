@@ -18,15 +18,19 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **TranscriptionJobQueue**: An in-memory (for MVP) queue of `TranscriptionJob` instances awaiting processing or currently being processed. Responsible for ordering, basic concurrency control, and exposing jobs to the worker that uses a transcription backend.
 
-- **TranscriptionBackend**: An abstraction for components that perform speech-to-text transcription. Given an `AudioFile` (and job parameters), it produces a `Transcript`. Concrete example for MVP: a Python-based MLX Whisper backend invoked via subprocess.
+- **TranscriptionBackend**: An abstraction for components that perform speech-to-text transcription. Given an `AudioFile` (and job parameters), it produces a `Transcript`. Concrete implementations: `MlxWhisperBackend` (MLX Whisper via Python subprocess) and `ParakeetBackend` (Parakeet MLX via Python subprocess). Selected at startup by `BackendFactory` based on `config.yaml` `backend.type`.
 
 - **WatchConfiguration**: The configuration that controls how directories are monitored for new audio inputs (e.g. polling interval, include/exclude patterns, output directory rules).
 
 - **Watcher**: The long-running component that periodically scans configured directories (using a `Poller` in the MVP) to discover new `AudioFile` instances and submit corresponding `TranscriptionJob`s into the `TranscriptionJobQueue`.
 
-- **WatcherControl**: The operational control surface for the `Watcher`. It starts, stops, restarts, and reports on the watcher process using the existing runtime files and CLI scripts.
+- **WatcherControl**: The operational control surface for the `Watcher`. It starts, stops, restarts, and reports on the watcher process using the managed runtime control model and CLI scripts.
 
 - **ManagedWatcherStack**: The operator-managed runtime stack consisting of the watcher process and the Just Press Record ingester process. For a given repo/runtime root, only one managed stack may own runtime control at a time.
+
+- **ManagedWatcherSupervisorState**: The authoritative runtime state record for the `ManagedWatcherStack`. It stores intended lifecycle, current operator-facing process state, owned PIDs, and transition detail in `runtime/managed-watcher-supervisor.json`.
+
+- **DurableJobClaim**: The persisted ownership record that a specific `AudioFile` path already belongs to a known `TranscriptionJob`. It is the primary restart-safe dedupe signal for pending, in-progress, completed, or failed work.
 
 - **StackLock**: The filesystem lock record that establishes ownership of the `ManagedWatcherStack`. It is used to prevent duplicate starts and to recover safely from stale runtime artifacts.
 
@@ -34,7 +38,7 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **WatcherProcessState**: The operator-facing lifecycle state of the watcher process itself. Current values: `running`, `stopped`, `starting`, `stopping`, `error`.
 
-- **ReconciledProcessState**: The authoritative operational state derived from lock artifacts, managed process liveness, and runtime ownership checks. Current values: `running`, `stopped`, `partial`, `staleLock`, `inconsistent`, `error`.
+- **ReconciledProcessState**: The operational state derived from `ManagedWatcherSupervisorState`, managed process liveness, and fallback runtime-artifact checks. Current values: `starting`, `running`, `stopping`, `stopped`, `partial`, `staleLock`, `inconsistent`, `error`.
 
 - **RuntimeActivityState**: The current runtime activity being performed by the system. Distinct from process lifecycle and freshness. Examples: `idle`, `scanning`, `waitingForStableFile`, `ingesting`, `enqueuingJob`, `processingTranscription`, `writingTranscript`, `completed`, `failed`.
 - **Draining**: Preferred operator-facing term for the state where stop/restart has been requested but the current `TranscriptionJob` is still being allowed to finish cleanly.
@@ -54,6 +58,12 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 - **Poller**: The concrete mechanism used by the `Watcher` to detect file system changes via periodic scans (e.g. every N seconds). In later versions it may be replaced or augmented by real filesystem events without changing domain logic.
 
 - **TranscriptionSession** (optional concept for later): A logical grouping of related `TranscriptionJob`s (e.g. all recordings from a single meeting or day). Not required for MVP but useful for future summarisation or reporting features.
+
+- **Real-time transcription loop**: A future low-latency processing path where audio flows directly to speech-to-text and produces a live transcript without waiting for downstream enrichment.
+
+- **Delayed enrichment loop**: A future asynchronous processing path where transcript output is sent to an LLM or other enrichment stage after the live transcript is already available.
+
+- **Live transcript**: The low-latency transcript output produced by the real-time transcription loop. Prefer this term for the immediate meeting-time transcript before delayed enrichment outputs arrive.
 
 ### Supporting / Infrastructure Concepts
 

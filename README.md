@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/okkie2/AutoTranscribe2/actions/workflows/ci.yml/badge.svg)](https://github.com/okkie2/AutoTranscribe2/actions/workflows/ci.yml)
 
-AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It converts audio recordings into clean, readable Markdown transcripts using on-device Whisper. Drop audio files into a folder and they become structured notes with timestamps and titles. Everything runs locally — no cloud, no uploads.
+AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It converts audio recordings into clean, readable Markdown transcripts using on-device speech-to-text (Parakeet MLX or Whisper). Drop audio files into a folder and they become structured notes with titles. Everything runs locally — no cloud, no uploads.
 
 ---
 
@@ -69,7 +69,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 - **Single-instance runtime guard:** menu control, `npm run start:all`, and launchd autostart all respect the same `ManagedWatcherStack` lock, so duplicate watcher stacks are refused instead of processing the same file multiple times.
 - **Diagnostic tracing:** AutoTranscribe2 writes a lightweight JSONL `Diagnostic Trace` for CLI control flow, state observations, guard decisions, and transcript processing to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl`.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with runtime activity, freshness, queue length, current job, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
-- **MLX Whisper** on Apple Silicon; optional Ollama for titles
+- **Parakeet MLX or MLX Whisper** on Apple Silicon; switch backend from the menu or via `config.yaml`; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
 - **JPR ingestion** via lightweight polling of the iCloud folder, plus **unified start/stop** (`npm run start:all` / `stop:all`)
 
@@ -109,11 +109,12 @@ Menu actions:
 - **Restart Watcher** – stops the managed watcher stack, verifies ownership cleanup, then starts a fresh stack.
 - **Show Recent Transcription Jobs** – lists recent finished jobs from the existing log file.
 - **Open Latest Transcript** – opens the Latest Transcript in the default macOS viewer.
+- **Switch Backend** – toggles between `parakeet` and `mlx_whisper`; writes `config.yaml` in-place; takes effect on next watcher start.
 - **Exit** – leaves the menu.
 
 The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
 
-Internally, runtime control is now split so `ManagedWatcherStackReconciler` owns process reconciliation, `WatcherControl` owns start/stop/restart orchestration, and the menu delegates action policy to focused handlers instead of one large command switch.
+Internally, runtime control now uses `ManagedWatcherSupervisorState` as the primary lifecycle truth, `ManagedWatcherStackReconciler` as the process-validation layer, `WatcherControl` for start/stop/restart orchestration, and focused menu handlers for action policy.
 
 You can still run directly in the foreground if you want the existing command flow. The app stops when you close the terminal or press Ctrl+C.
 
@@ -158,12 +159,15 @@ autotranscribe title-health
 
 | Requirement        | Notes |
 |--------------------|--------|
-| **Apple Silicon Mac** | Required for MLX Whisper. |
+| **Apple Silicon Mac** | Required for MLX-based transcription. |
 | **Node.js**        | v18+ recommended. |
-| **Python 3**       | Venv with `pip install mlx-whisper`. |
+| **Python 3**       | Venv with transcription packages installed (see below). |
 | **Ollama**         | Optional; for title generation. |
 
-**Transcription stack (Whisper):** The app uses [MLX Whisper](https://github.com/ml-explore/mlx-whisper) (Python package **mlx-whisper**, tested with **0.4.3**) with the **whisper-large-v3-turbo** model from `mlx-community/whisper-large-v3-turbo`. Install with `pip install mlx-whisper`; check the installed version with `./.venv/bin/python -m pip show mlx-whisper`.
+**Transcription backends (choose one):**
+
+- **Parakeet MLX** (recommended) — `pip install parakeet-mlx`. Uses `mlx-community/parakeet-tdt-0.6b-v3`. 3× faster and more accurate than Whisper on Dutch audio (WER 0.049 vs 0.073 on 200-sample benchmark). Set `backend.type: "parakeet"` in `config.yaml` or switch from the menu.
+- **MLX Whisper** — `pip install mlx-whisper`. Uses `mlx-community/whisper-large-v3-turbo`. Default if no switch has been made.
 
 ---
 
@@ -181,6 +185,13 @@ Wiki-ready docs under `docs/` (can be synced to GitHub Wiki):
 | [docs/Development.md](docs/Development.md) | Testing, contributing, TODO/roadmap, glossary |
 
 Issue drafts: [docs/issues/](docs/issues/). Roadmap: [TODO.md](TODO.md).
+
+## Roadmap
+
+- Reliability first: strengthen automated testing, collision handling, and watcher robustness.
+- Usability next: improve background visibility and CLI installation.
+- Workflow improvements: extend ingestion options and transcript outputs.
+- Future direction: explore a low-latency meeting assistant with a real-time transcription loop plus a delayed enrichment loop for summary, decisions, and action items.
 
 **GitHub Wiki:** To fill the wiki, create the first page on the Wiki tab (one-time), then run `npm run push-wiki`.
 

@@ -18,6 +18,10 @@ import {
   type WatcherProcessState
 } from "./ManagedWatcherStackReconciler.js";
 import {
+  readSupervisorState,
+  writeSupervisorState
+} from "./ManagedWatcherSupervisorState.js";
+import {
   buildCompactStatusSnapshot,
   formatCompactStatusSnapshotLines,
   formatDashboardLines,
@@ -63,6 +67,7 @@ export interface DiagnosticStateSnapshot {
   updatedAt: string | null;
   watchPid: number | null;
   ingestPid: number | null;
+  hasSupervisorState: boolean;
   hasLock: boolean;
   hasLegacyPidFile: boolean;
   runtimeStatusFresh: boolean;
@@ -106,6 +111,7 @@ export function getDiagnosticStateSnapshot(config: AppConfig): DiagnosticStateSn
   const reconciliation = reconcileManagedWatcherStack(config);
   const latestTranscript = getLatestTranscript(config);
   const statusFreshness = formatDashboardLines(status, config.runtimeStatusPath).statusFreshness;
+  const supervisorState = readSupervisorState(config);
 
   return {
     watcherProcessState: reconciliation.watcherProcessState,
@@ -120,6 +126,7 @@ export function getDiagnosticStateSnapshot(config: AppConfig): DiagnosticStateSn
     updatedAt: status?.updatedAt ?? null,
     watchPid: reconciliation.watchPid,
     ingestPid: reconciliation.ingestPid,
+    hasSupervisorState: supervisorState !== null,
     hasLock: reconciliation.hasLock,
     hasLegacyPidFile: reconciliation.hasLegacyPidFile,
     runtimeStatusFresh: reconciliation.runtimeStatusFresh,
@@ -226,6 +233,23 @@ export async function ensureOllamaRunning(config: AppConfig): Promise<void> {
   }
 }
 
+function publishSupervisorState(
+  config: AppConfig,
+  watcherProcessState: WatcherProcessState,
+  desiredState: "running" | "stopped",
+  watchPid: number | null,
+  ingestPid: number | null,
+  detail: string
+): void {
+  writeSupervisorState(config, {
+    desiredState,
+    watcherProcessState,
+    watchPid,
+    ingestPid,
+    detail
+  });
+}
+
 function attemptStartOllama(reason?: string): void {
   const suffix = reason ? ` (${reason})` : "";
   console.log(`[WatcherControl] Ollama not reachable${suffix}; attempting to start via 'brew services start ollama'...`);
@@ -305,12 +329,21 @@ export async function startWatcherControl(config: AppConfig): Promise<void> {
   }
 
   acquireManagedStackLock(config);
+  publishSupervisorState(config, "starting", "running", null, null, "Starting managed watcher stack.");
 
   console.log("[WatcherControl] Starting AutoTranscribe2 watcher control (Ollama + ingest:jpr + watcher)...");
   try {
     if (isTestMode()) {
       setSimulatedManagedProcessList(TEST_WATCH_PID, TEST_INGEST_PID);
       persistManagedStack(config, TEST_WATCH_PID, TEST_INGEST_PID);
+      publishSupervisorState(
+        config,
+        "running",
+        "running",
+        TEST_WATCH_PID,
+        TEST_INGEST_PID,
+        "Managed watcher stack is running."
+      );
       traceObservedState(config, "WatcherControl", "start");
       traceEvent({
         event: "start_succeeded",
@@ -344,10 +377,26 @@ export async function startWatcherControl(config: AppConfig): Promise<void> {
     }
 
     persistManagedStack(config, watch.pid, ingest.pid);
+    publishSupervisorState(
+      config,
+      "starting",
+      "running",
+      watch.pid,
+      ingest.pid,
+      "Managed watcher stack started; waiting for stabilization."
+    );
     await delay(STARTUP_STABILIZE_MS);
 
     const started = reconcileManagedWatcherStack(config);
     if (started.reconciledProcessState !== "running") {
+      publishSupervisorState(
+        config,
+        "error",
+        "running",
+        watch.pid,
+        ingest.pid,
+        `Managed watcher stack failed to stabilize: ${started.detail}`
+      );
       cleanupStackArtifacts(config);
       traceEvent({
         event: "start_failed",
@@ -359,6 +408,15 @@ export async function startWatcherControl(config: AppConfig): Promise<void> {
       throw new Error(`Managed watcher stack failed to stabilize: ${started.detail}`);
     }
 
+    publishSupervisorState(
+      config,
+      "running",
+      "running",
+      watch.pid,
+      ingest.pid,
+      "Managed watcher stack is running."
+    );
+
     traceObservedState(config, "WatcherControl", "start");
     traceEvent({
       event: "start_succeeded",
@@ -369,6 +427,14 @@ export async function startWatcherControl(config: AppConfig): Promise<void> {
     });
     console.log("[WatcherControl] Started ingest:jpr (PID:", ingest.pid, "), watcher (PID:", watch.pid, ").");
   } catch (error) {
+    publishSupervisorState(
+      config,
+      "error",
+      "running",
+      null,
+      null,
+      error instanceof Error ? error.message : String(error)
+    );
     cleanupStackArtifacts(config);
     traceEvent({
       event: "start_failed",
@@ -406,6 +472,8 @@ export async function stopWatcherControl(config: AppConfig): Promise<void> {
   });
 
   if (reconciliation.reconciledProcessState === "stopped") {
+    cleanupStackArtifacts(config);
+    publishSupervisorState(config, "stopped", "stopped", null, null, "Managed watcher stack is already stopped.");
     traceEvent({
       event: "stop_skipped_already_stopped",
       source: "WatcherControl",
@@ -420,6 +488,7 @@ export async function stopWatcherControl(config: AppConfig): Promise<void> {
     if (isTestMode()) {
       clearSimulatedManagedProcessList();
     }
+    publishSupervisorState(config, "stopped", "stopped", null, null, "Cleaned up stale managed stack artifacts.");
     traceEvent({
       event: "stop_skipped_already_stopped",
       source: "WatcherControl",
@@ -434,6 +503,7 @@ export async function stopWatcherControl(config: AppConfig): Promise<void> {
   if (isTestMode()) {
     clearSimulatedManagedProcessList();
     cleanupStackArtifacts(config);
+    publishSupervisorState(config, "stopped", "stopped", null, null, "Managed watcher stack stopped.");
     traceObservedState(config, "WatcherControl", "stop");
     traceEvent({
       event: "stop_succeeded",
@@ -449,6 +519,15 @@ export async function stopWatcherControl(config: AppConfig): Promise<void> {
     { name: "ingest:jpr", pid: reconciliation.ingestPid },
     { name: "watcher", pid: reconciliation.watchPid }
   ];
+
+  publishSupervisorState(
+    config,
+    "stopping",
+    "stopped",
+    reconciliation.watchPid,
+    reconciliation.ingestPid,
+    "Stop requested; waiting for current work to finish cleanly."
+  );
 
   for (const target of targets) {
     if (!target.pid || !isPidRunning(target.pid)) continue;
@@ -476,6 +555,14 @@ export async function stopWatcherControl(config: AppConfig): Promise<void> {
   cleanupStackArtifacts(config);
 
   if (isPidRunning(reconciliation.watchPid) || isPidRunning(reconciliation.ingestPid)) {
+    publishSupervisorState(
+      config,
+      "error",
+      "stopped",
+      reconciliation.watchPid,
+      reconciliation.ingestPid,
+      `Managed processes still alive after ${Math.round(STOP_TIMEOUT_MS / 1000)}s stop timeout.`
+    );
     traceEvent({
       event: "stop_failed",
       source: "WatcherControl",
@@ -488,6 +575,7 @@ export async function stopWatcherControl(config: AppConfig): Promise<void> {
     );
   }
 
+  publishSupervisorState(config, "stopped", "stopped", null, null, "Managed watcher stack stopped.");
   traceObservedState(config, "WatcherControl", "stop");
   traceEvent({
     event: "stop_succeeded",
@@ -507,12 +595,22 @@ export function getStatusSnapshot(config: AppConfig): StatusSnapshot {
   const latestTranscript = getLatestTranscript(config);
   const reconciliation = reconcileManagedWatcherStack(config);
   const dashboard = formatDashboardLines(status, config.runtimeStatusPath);
+  const DEFAULT_MODELS: Record<string, string> = {
+    mlx_whisper: "whisper-large-v3-turbo",
+    parakeet: "parakeet-tdt-0.6b-v3"
+  };
+  const modelDisplay = config.backend.options.modelId ?? DEFAULT_MODELS[config.backend.type];
+  const backendLabel = modelDisplay
+    ? `${config.backend.type} (${modelDisplay})`
+    : config.backend.type;
+
   const lines = [
     "AutoTranscribe2 WatcherControl",
     "",
     `Watcher process: ${reconciliation.watcherProcessState}`,
     `Reconciled process state: ${reconciliation.reconciledProcessState}`,
     `Latest transcript: ${latestTranscript ? path.basename(latestTranscript.transcriptPath) : "-"}`,
+    `Backend: ${backendLabel}`,
     ...dashboard.lines.filter((line) => line !== "AutoTranscribe2 status" && line !== "Press Ctrl+C to exit.")
   ];
 

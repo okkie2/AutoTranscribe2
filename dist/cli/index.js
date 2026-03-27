@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { loadConfig } from "../infrastructure/config/YamlConfigLoader.js";
 import { ConsoleAndFileLogger } from "../infrastructure/logging/ConsoleAndFileLogger.js";
-import { MlxWhisperBackend } from "../infrastructure/backend/MlxWhisperBackend.js";
+import { createBackend } from "../infrastructure/backend/BackendFactory.js";
 import { TranscriptionService } from "../application/TranscriptionService.js";
 import { TranscriptionJobQueue } from "../domain/TranscriptionJobQueue.js";
 import { FileSystemPoller } from "../infrastructure/watcher/FileSystemPoller.js";
@@ -43,7 +43,7 @@ async function main() {
         process.exit(1);
     }
     const logger = new ConsoleAndFileLogger(config.logging);
-    const backend = new MlxWhisperBackend(config.backend);
+    const backend = createBackend(config.backend);
     const titleSuggester = createTitleSuggester(config.title);
     const statusPath = config.runtimeStatusPath;
     const statusUpdater = createStatusUpdater(statusPath);

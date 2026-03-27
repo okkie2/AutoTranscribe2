@@ -150,6 +150,39 @@ async function openLatestTranscriptAction({ config }) {
     console.log("");
     return { running: true, requiresPause: true };
 }
+const BACKEND_TYPES = ["mlx_whisper", "parakeet"];
+async function switchBackendAction({ config, setBackendType, confirmAction }) {
+    traceEvent({
+        event: "command_parsed",
+        source: "cli:menu",
+        command: "Switch Backend"
+    });
+    const current = config.backend.type;
+    const target = BACKEND_TYPES.find((t) => t !== current) ?? BACKEND_TYPES[0];
+    console.clear();
+    console.log(`Current backend: ${current}`);
+    console.log("");
+    if (!(await confirmAction(`Switch to ${target}`))) {
+        console.clear();
+        console.log("Switch Backend cancelled.");
+        console.log("");
+        return { running: true, requiresPause: true };
+    }
+    try {
+        setBackendType(target);
+        console.clear();
+        console.log(`Backend switched to ${target}.`);
+        console.log("Restart the watcher to apply the change.");
+        console.log("");
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.clear();
+        console.log(`Failed to switch backend: ${message}`);
+        console.log("");
+    }
+    return { running: true, requiresPause: true };
+}
 async function exitAction() {
     traceEvent({
         event: "command_parsed",
@@ -171,6 +204,8 @@ export const MENU_ACTIONS = {
     "Show Recent Transcription Jobs": showRecentJobsAction,
     "6": openLatestTranscriptAction,
     "Open Latest Transcript": openLatestTranscriptAction,
-    "7": exitAction,
+    "7": switchBackendAction,
+    "Switch Backend": switchBackendAction,
+    "8": exitAction,
     Exit: exitAction
 };

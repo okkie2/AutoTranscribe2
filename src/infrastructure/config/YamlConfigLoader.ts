@@ -37,21 +37,29 @@ function toBackendConfig(raw: any): BackendConfig {
   }
 
   const type = String(raw.type ?? "mlx_whisper");
-  if (type !== "mlx_whisper") {
-    throw new Error(`Unsupported backend type '${type}' in config.yaml (expected 'mlx_whisper')`);
+  const validTypes: BackendConfig["type"][] = ["mlx_whisper", "parakeet"];
+  if (!validTypes.includes(type as BackendConfig["type"])) {
+    throw new Error(
+      `Unsupported backend type '${type}' in config.yaml (expected one of ${validTypes.join(", ")})`
+    );
   }
 
   const options = raw.options ?? {};
+  const defaultScript =
+    type === "parakeet"
+      ? "./py-backend/parakeet_backend.py"
+      : "./py-backend/mlx_whisper_backend.py";
 
   return {
-    type: "mlx_whisper",
+    type: type as BackendConfig["type"],
     pythonExecutable: String(raw.python_executable ?? "python3"),
-    scriptPath: String(raw.script_path ?? "./py-backend/mlx_whisper_backend.py"),
+    scriptPath: String(raw.script_path ?? defaultScript),
     languageHint: raw.language_hint === null || raw.language_hint === undefined
       ? null
       : String(raw.language_hint),
     options: {
       modelSize: String(options.model_size ?? "medium"),
+      modelId: options.model_id !== undefined ? String(options.model_id) : undefined,
       ...options
     }
   };

@@ -1,5 +1,5 @@
 import type readline from "node:readline/promises";
-import type { AppConfig } from "../infrastructure/config/AppConfig.js";
+import type { AppConfig, BackendConfig } from "../infrastructure/config/AppConfig.js";
 import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
 import {
   getCompactStatusSnapshot,
@@ -22,6 +22,7 @@ export interface MenuActionContext {
   showLiveWatcherStatus: () => Promise<void>;
   renderRecentJobs: () => void;
   confirmAction: (actionLabel: string) => Promise<boolean>;
+  setBackendType: (type: BackendConfig["type"]) => void;
 }
 
 export type MenuActionHandler = (context: MenuActionContext) => Promise<MenuActionResult>;
@@ -194,6 +195,49 @@ async function openLatestTranscriptAction({ config }: MenuActionContext): Promis
   return { running: true, requiresPause: true };
 }
 
+const BACKEND_TYPES: BackendConfig["type"][] = ["mlx_whisper", "parakeet"];
+
+async function switchBackendAction({
+  config,
+  setBackendType,
+  confirmAction
+}: MenuActionContext): Promise<MenuActionResult> {
+  traceEvent({
+    event: "command_parsed",
+    source: "cli:menu",
+    command: "Switch Backend"
+  });
+
+  const current = config.backend.type;
+  const target = BACKEND_TYPES.find((t) => t !== current) ?? BACKEND_TYPES[0];
+
+  console.clear();
+  console.log(`Current backend: ${current}`);
+  console.log("");
+
+  if (!(await confirmAction(`Switch to ${target}`))) {
+    console.clear();
+    console.log("Switch Backend cancelled.");
+    console.log("");
+    return { running: true, requiresPause: true };
+  }
+
+  try {
+    setBackendType(target);
+    console.clear();
+    console.log(`Backend switched to ${target}.`);
+    console.log("Restart the watcher to apply the change.");
+    console.log("");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.clear();
+    console.log(`Failed to switch backend: ${message}`);
+    console.log("");
+  }
+
+  return { running: true, requiresPause: true };
+}
+
 async function exitAction(): Promise<MenuActionResult> {
   traceEvent({
     event: "command_parsed",
@@ -216,6 +260,8 @@ export const MENU_ACTIONS: Record<string, MenuActionHandler> = {
   "Show Recent Transcription Jobs": showRecentJobsAction,
   "6": openLatestTranscriptAction,
   "Open Latest Transcript": openLatestTranscriptAction,
-  "7": exitAction,
+  "7": switchBackendAction,
+  "Switch Backend": switchBackendAction,
+  "8": exitAction,
   Exit: exitAction
 };

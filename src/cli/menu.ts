@@ -3,7 +3,8 @@
 import chalk from "chalk";
 import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import type { AppConfig } from "../infrastructure/config/AppConfig.js";
+import type { AppConfig, BackendConfig } from "../infrastructure/config/AppConfig.js";
+import { setBackendType as writeBackendType } from "../infrastructure/config/ConfigWriter.js";
 import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
 import { extractFirstAllowedKey } from "./menuInput.js";
 import {
@@ -22,6 +23,7 @@ const MENU_OPTIONS = [
   "Restart Watcher",
   "Show Recent Transcription Jobs",
   "Open Latest Transcript",
+  "Switch Backend",
   "Exit"
 ] as const;
 const STATUS_REFRESH_INTERVAL_MS = 300;
@@ -35,7 +37,7 @@ function renderMenu(config: AppConfig): void {
     console.log(`${i + 1}. ${MENU_OPTIONS[i]}`);
   }
   console.log("");
-  console.log("Press Enter to refresh. Type 'r' to refresh. Type 1-7 to choose an action.");
+  console.log("Press Enter to refresh. Type 'r' to refresh. Type 1-8 to choose an action.");
   console.log("");
 }
 
@@ -167,7 +169,7 @@ async function readMenuSelection(rl: readline.Interface): Promise<string> {
     return (await rl.question("Select an option: ")).trim();
   }
 
-  const allowedKeys = ["1", "2", "3", "4", "5", "6", "7", "r", "R"] as const;
+  const allowedKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "r", "R"] as const;
   output.write("Select an option: ");
   rl.pause();
 
@@ -252,7 +254,7 @@ async function showResultScreen(
       command: selection
     });
     console.clear();
-    console.log("Unknown selection. Choose 1-7, press Enter to refresh, or type 'r'.");
+    console.log("Unknown selection. Choose 1-8, press Enter to refresh, or type 'r'.");
     console.log("");
     return { running: true, requiresPause: true };
   }
@@ -262,7 +264,11 @@ async function showResultScreen(
     rl,
     showLiveWatcherStatus: () => showLiveWatcherStatus(config, rl),
     renderRecentJobs: () => renderRecentJobs(config),
-    confirmAction: (actionLabel) => confirmAction(rl, actionLabel)
+    confirmAction: (actionLabel) => confirmAction(rl, actionLabel),
+    setBackendType: (type: BackendConfig["type"]) => {
+      writeBackendType("config.yaml", type);
+      config.backend.type = type;
+    },
   });
 }
 

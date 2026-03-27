@@ -6,6 +6,7 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 
 ## Already implemented
 
+- **Parakeet MLX backend** – `backend.type: "parakeet"` in `config.yaml` selects the Parakeet MLX backend (`mlx-community/parakeet-tdt-0.6b-v3`). Benchmark shows 3× faster and more accurate than MLX Whisper on Dutch audio. Switch via menu option 7 or edit `config.yaml`; takes effect on next watcher start. Active backend shown in watcher status view.
 - **Operational menu** – `autotranscribe menu` opens a simple interactive `WatcherControl` menu with an always-visible compact `StatusSnapshot`, manual refresh, watcher status, start/stop/restart, recent `TranscriptionJob`s, and opening the `LatestTranscript`.
 - **iCloud Just Press Record ingestion** – `npm run ingest:jpr` watches the JPR iCloud folder, flattens dated subfolders into the recordings directory, normalises filenames (`YYYY-MM-DD_HH-MM-SS_...`), optional cleanup after copy.
 - **Readable transcript format** – Paragraphs with timestamps and labels; original transcript at bottom. Preview script: `python py-backend/timestamp_preview.py <file> --language nl`.
@@ -67,6 +68,13 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 
 - **macOS GUI wrapper**
   - Explore a small GUI or menu bar app that reuses the same core services.
+
+- **Low-latency meeting assistant with delayed enrichment loop** ([issue draft](docs/issues/17-low-latency-meeting-assistant-with-delayed-enrichment-loop.md))
+  - Use a real-time transcription loop as the primary live path from audio to transcript.
+  - Add a delayed enrichment loop that consumes transcript segments asynchronously.
+  - Keep the LLM out of the live audio path to minimise latency during meetings.
+  - Produce a live transcript first, then delayed summary, decisions, and action items.
+  - Keep the pipeline traceable so the live transcript and delayed enrichment outputs can be related back to the same meeting transcript.
 
 ---
 

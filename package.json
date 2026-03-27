@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test dist/__tests__/TranscriptTitleFormatter.test.js dist/__tests__/TranscriptionService.test.js dist/__tests__/TranscriptionWorkflow.test.js dist/__tests__/JobLedgerRecovery.test.js dist/__tests__/MenuInput.test.js dist/__tests__/MenuWorkflow.test.js dist/__tests__/StatusDashboard.test.js dist/__tests__/JobWorkerHeartbeat.test.js dist/__tests__/WatcherControl.test.js dist/__tests__/Diagnostics.test.js dist/__tests__/FileSystemPoller.test.js dist/__tests__/OllamaTitleSuggester.test.js",
+    "test": "npm run build && node --test dist/__tests__/TranscriptTitleFormatter.test.js dist/__tests__/TranscriptionService.test.js dist/__tests__/TranscriptionWorkflow.test.js dist/__tests__/JobLedgerRecovery.test.js dist/__tests__/MenuInput.test.js dist/__tests__/MenuWorkflow.test.js dist/__tests__/StatusDashboard.test.js dist/__tests__/JobWorkerHeartbeat.test.js dist/__tests__/WatcherControl.test.js dist/__tests__/Diagnostics.test.js dist/__tests__/FileSystemPoller.test.js dist/__tests__/OllamaTitleSuggester.test.js dist/__tests__/BackendFactory.test.js dist/__tests__/ConfigWriter.test.js",
     "title:preview": "npm run build && node dist/cli/titlePreview.js",
     "title:health": "npm run build && node dist/cli/index.js title-health",
     "ingest:jpr": "npm run build && node dist/cli/ingestJustPressRecord.js",

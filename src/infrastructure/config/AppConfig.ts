@@ -1,13 +1,14 @@
 import type { WatchConfiguration } from "../../domain/WatchConfiguration.js";
 
 export interface BackendConfig {
-  type: "mlx_whisper";
+  type: "mlx_whisper" | "parakeet";
   pythonExecutable: string;
   scriptPath: string;
   languageHint: string | null;
-  // Backend-specific options, e.g. model size.
+  // Backend-specific options, e.g. model size or model id.
   options: {
     modelSize: string;
+    modelId?: string;
     // Allow other keys as needed in the future.
     [key: string]: unknown;
   };
