@@ -119,6 +119,19 @@ export class FileSystemPoller {
                 });
                 continue;
             }
+            if (this.jobLedger?.hasClaimForAudioPath(resolved)) {
+                this.seenFiles.add(resolved);
+                this.persistDiscoveryLedger();
+                traceEvent({
+                    event: "transcript_duplicate_ignored",
+                    source: "FileSystemPoller",
+                    metadata: {
+                        reason: "already_claimed_in_durable_job_state",
+                        ...this.getFileMetadata(resolved)
+                    }
+                });
+                continue;
+            }
             const currentFingerprint = this.readStableFingerprint(resolved);
             const pendingFingerprint = this.pendingFiles.get(resolved);
             if (!currentFingerprint ||
@@ -169,7 +182,20 @@ export class FileSystemPoller {
                 targetTranscriptPath
             };
             try {
-                this.jobLedger?.record(job);
+                const claimed = this.jobLedger ? this.jobLedger.claimPendingJob(job) : true;
+                if (!claimed) {
+                    this.seenFiles.add(resolved);
+                    this.persistDiscoveryLedger();
+                    traceEvent({
+                        event: "transcript_duplicate_ignored",
+                        source: "FileSystemPoller",
+                        metadata: {
+                            reason: "already_claimed_in_durable_job_state",
+                            ...this.getFileMetadata(resolved)
+                        }
+                    });
+                    continue;
+                }
             }
             catch (error) {
                 this.logger.error("Failed to record transcription job in durable ledger; retrying on next scan", {

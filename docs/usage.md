@@ -23,9 +23,9 @@ This opens a lightweight interactive menu with exactly these actions:
 - A compact `StatusSnapshot` is always visible above the menu whenever it is shown or refreshed.
 - The compact snapshot shows `WatcherProcessState`, `RuntimeActivityState`, `StatusFreshness`, queue, the current transcription job, and the Latest Transcript filename when available.
 - The menu is intentionally static while waiting for input. Refresh happens when the menu opens, after an action completes, when you press Enter on an empty line, or when you type `r`.
-- Menu actions, `start:all`, and autostart all use the same single-instance `ManagedWatcherStack` guard. If a valid stack lock already owns runtime control, start is refused instead of creating duplicate watcher stacks.
+- Menu actions, `start:all`, and autostart all use the same single-instance `ManagedWatcherStack` guard. `ManagedWatcherSupervisorState` is now the primary runtime truth for lifecycle ownership, while the stack lock remains a start-safety guard.
 
-- **Show Watcher Status** – shows the fuller live status view based on `runtime/status.json`, the reconciled `ManagedWatcherStack`, and the current Latest Transcript.
+- **Show Watcher Status** – shows the fuller live status view based on `runtime/status.json`, `ManagedWatcherSupervisorState`, and the current Latest Transcript.
 - **Start Watcher** – checks whether start is currently allowed, asks for confirmation only when it is, then starts the managed watcher stack (`ingest:jpr` + watcher, including the Ollama check when configured).
 - **Stop Watcher** – first checks whether there is anything to stop, asks for confirmation only when stopping is applicable, then stops the managed watcher stack and cleans lock/PID artifacts.
 - **Restart Watcher** – first checks whether there is anything to restart, asks for confirmation only when restarting is applicable, then stops and starts the managed watcher stack.
@@ -73,13 +73,15 @@ python py-backend/timestamp_preview.py /path/to/audio.m4a --language nl > previe
 - **Logs:** Console and file logs go to the path in `logging.log_file` (default `~/Documents/AutoTranscribe2/logs/autotranscribe.log`).
 - **Runtime status:** When the runtime is active, it writes `runtime/status.json` (next to `config.yaml`) with `runtimeActivityState`, queue length, current file, last error, title-provider state, and `updatedAt`. Freshness is derived separately from `updatedAt`.
 - During stop or restart, a busy watcher may report `draining` while it finishes the current Transcription Job cleanly before exiting.
-- **Stack ownership:** `runtime/managed-stack.lock.json` is the `StackLock` for the managed watcher stack. AutoTranscribe2 reconciles that lock with live PIDs and the legacy `.autotranscribe2-pids.json` file before starting, stopping, or reporting process state.
+- **Supervisor state:** `runtime/managed-watcher-supervisor.json` is the `ManagedWatcherSupervisorState` for the managed watcher stack. It is the primary runtime truth for lifecycle state, owned PIDs, and transition detail.
+- **Durable job claims:** `runtime/transcription-jobs.json` now acts as the primary durable claim store for watcher-discovered audio paths, so restart recovery and duplicate suppression do not depend only on the legacy discovery ledger.
+- **Stack ownership guard:** `runtime/managed-stack.lock.json` is still the `StackLock` used to prevent duplicate starts and to clean up stale start artifacts safely.
 - **Discovery ledger:** The watcher persists a minimal ledger of already discovered recordings in the transcript output directory so a watcher restart does not re-enqueue the same recording paths again.
 
 ## Runtime control internals
 
-- **Reconciliation:** `ManagedWatcherStackReconciler` is the authoritative module for reconciling the `StackLock`, legacy PID file, live process checks, and unmanaged watcher-like activity.
-- **Operational commands:** `WatcherControl` consumes that reconciled result for start, stop, restart, compact `StatusSnapshot`, detailed status, and diagnostic exports.
+- **Reconciliation:** `ManagedWatcherStackReconciler` now prefers `ManagedWatcherSupervisorState` as the primary lifecycle source and falls back to lock/PID artifact checks only when supervisor state is absent.
+- **Operational commands:** `WatcherControl` updates `ManagedWatcherSupervisorState` across start, stop, restart, compact `StatusSnapshot`, detailed status, and diagnostic exports.
 - **Menu actions:** `menu.ts` owns terminal I/O and rendering, while `menuActions.ts` owns applicability checks, confirmations, and per-action execution flow.
 
 ## Live status dashboard
@@ -117,7 +119,7 @@ Autostart uses the same single-instance guard as the menu and `start:all`. If a 
 
 ### start:all and stop:all
 
-- **start:all:** Loads config, acquires the `StackLock`, checks Ollama when needed, starts `ingest:jpr` and `autotranscribe watch`, then records managed PIDs in both `runtime/managed-stack.lock.json` and the legacy `.autotranscribe2-pids.json`.
+- **start:all:** Loads config, acquires the `StackLock`, checks Ollama when needed, starts `ingest:jpr` and `autotranscribe watch`, then records lifecycle truth in `runtime/managed-watcher-supervisor.json` and keeps lock/PID artifacts for start safety and compatibility.
 - **ingest:jpr:** Polls the configured Just Press Record iCloud folder every 3 seconds, waits for each `.m4a` file to stabilize, then copies it into the recordings folder and removes the source file.
 - **stop:all:** Reconciles the managed watcher stack, sends `SIGINT` only to the managed processes it owns, and then removes lock/PID artifacts.
 - **menu:** Reuses the same watcher control path for start/stop/restart, plus shows a static `StatusSnapshot`, recent Transcription Jobs, and the Latest Transcript.

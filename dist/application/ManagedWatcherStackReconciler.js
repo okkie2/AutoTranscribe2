@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { readStatus } from "../infrastructure/status/RuntimeStatus.js";
+import { readSupervisorState } from "./ManagedWatcherSupervisorState.js";
 const LEGACY_PID_FILE = ".autotranscribe2-pids.json";
 const STACK_LOCK_FILENAME = "managed-stack.lock.json";
 const STATUS_FRESHNESS_THRESHOLD_MS = 30000;
@@ -136,8 +137,12 @@ function detectUnmanagedWatcherActivity(managedPids) {
 }
 function mapReconciledStateToWatcherProcessState(reconciledProcessState) {
     switch (reconciledProcessState) {
+        case "starting":
+            return "starting";
         case "running":
             return "running";
+        case "stopping":
+            return "stopping";
         case "stopped":
         case "staleLock":
             return "stopped";
@@ -148,7 +153,166 @@ function mapReconciledStateToWatcherProcessState(reconciledProcessState) {
             return "error";
     }
 }
+function reconcileFromSupervisorState(config) {
+    const supervisor = readSupervisorState(config);
+    if (!supervisor) {
+        return null;
+    }
+    const watchPid = supervisor.watchPid;
+    const ingestPid = supervisor.ingestPid;
+    const watchRunning = isPidRunning(watchPid);
+    const ingestRunning = isPidRunning(ingestPid);
+    const runtimeStatusFresh = runtimeStatusLooksAlive(config);
+    const hasLock = readStackLock(config) !== null;
+    const hasLegacyPidFile = readLegacyPidFile() !== null;
+    const unmanagedWatcherDetected = detectUnmanagedWatcherActivity([watchPid, ingestPid]);
+    if (unmanagedWatcherDetected) {
+        return {
+            reconciledProcessState: "error",
+            watcherProcessState: "error",
+            watchPid,
+            ingestPid,
+            hasLock,
+            hasLegacyPidFile,
+            runtimeStatusFresh,
+            unmanagedWatcherDetected,
+            detail: "Watcher-like runtime activity exists outside the managed supervisor state."
+        };
+    }
+    switch (supervisor.watcherProcessState) {
+        case "starting":
+            if (watchRunning && ingestRunning) {
+                return {
+                    reconciledProcessState: "running",
+                    watcherProcessState: "running",
+                    watchPid,
+                    ingestPid,
+                    hasLock,
+                    hasLegacyPidFile,
+                    runtimeStatusFresh,
+                    unmanagedWatcherDetected,
+                    detail: "Supervisor state reached running: both managed processes are alive."
+                };
+            }
+            return {
+                reconciledProcessState: "starting",
+                watcherProcessState: "starting",
+                watchPid,
+                ingestPid,
+                hasLock,
+                hasLegacyPidFile,
+                runtimeStatusFresh,
+                unmanagedWatcherDetected,
+                detail: supervisor.detail || "Supervisor is starting the managed watcher stack."
+            };
+        case "stopping":
+            if (watchRunning || ingestRunning) {
+                return {
+                    reconciledProcessState: "stopping",
+                    watcherProcessState: "stopping",
+                    watchPid,
+                    ingestPid,
+                    hasLock,
+                    hasLegacyPidFile,
+                    runtimeStatusFresh,
+                    unmanagedWatcherDetected,
+                    detail: supervisor.detail || "Supervisor is stopping the managed watcher stack."
+                };
+            }
+            return {
+                reconciledProcessState: "stopped",
+                watcherProcessState: "stopped",
+                watchPid,
+                ingestPid,
+                hasLock,
+                hasLegacyPidFile,
+                runtimeStatusFresh,
+                unmanagedWatcherDetected,
+                detail: "Supervisor state reached stopped: managed processes are no longer alive."
+            };
+        case "running":
+            if (watchRunning && ingestRunning) {
+                return {
+                    reconciledProcessState: "running",
+                    watcherProcessState: "running",
+                    watchPid,
+                    ingestPid,
+                    hasLock,
+                    hasLegacyPidFile,
+                    runtimeStatusFresh,
+                    unmanagedWatcherDetected,
+                    detail: supervisor.detail || "Supervisor reports the managed watcher stack as running."
+                };
+            }
+            if (watchRunning !== ingestRunning) {
+                return {
+                    reconciledProcessState: "partial",
+                    watcherProcessState: "error",
+                    watchPid,
+                    ingestPid,
+                    hasLock,
+                    hasLegacyPidFile,
+                    runtimeStatusFresh,
+                    unmanagedWatcherDetected,
+                    detail: "Supervisor expected a running stack but only one managed process is alive."
+                };
+            }
+            return {
+                reconciledProcessState: "error",
+                watcherProcessState: "error",
+                watchPid,
+                ingestPid,
+                hasLock,
+                hasLegacyPidFile,
+                runtimeStatusFresh,
+                unmanagedWatcherDetected,
+                detail: "Supervisor expected a running stack but managed processes are missing."
+            };
+        case "stopped":
+            if (!watchRunning && !ingestRunning) {
+                return {
+                    reconciledProcessState: "stopped",
+                    watcherProcessState: "stopped",
+                    watchPid,
+                    ingestPid,
+                    hasLock,
+                    hasLegacyPidFile,
+                    runtimeStatusFresh,
+                    unmanagedWatcherDetected,
+                    detail: supervisor.detail || "Supervisor reports the managed watcher stack as stopped."
+                };
+            }
+            return {
+                reconciledProcessState: "error",
+                watcherProcessState: "error",
+                watchPid,
+                ingestPid,
+                hasLock,
+                hasLegacyPidFile,
+                runtimeStatusFresh,
+                unmanagedWatcherDetected,
+                detail: "Supervisor reports stopped but managed processes are still alive."
+            };
+        case "error":
+        default:
+            return {
+                reconciledProcessState: "error",
+                watcherProcessState: "error",
+                watchPid,
+                ingestPid,
+                hasLock,
+                hasLegacyPidFile,
+                runtimeStatusFresh,
+                unmanagedWatcherDetected,
+                detail: supervisor.detail || "Supervisor reported an error state."
+            };
+    }
+}
 export function reconcileManagedWatcherStack(config) {
+    const supervisorReconciliation = reconcileFromSupervisorState(config);
+    if (supervisorReconciliation) {
+        return supervisorReconciliation;
+    }
     const lock = readStackLock(config);
     const legacy = readLegacyPidFile();
     const watchPid = pickPid(lock?.watchPid, legacy?.watchPid);

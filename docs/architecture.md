@@ -37,13 +37,14 @@ High-level orchestration lives under `src/application/`.
 
 - `TranscriptionService`: transcribe, title, and write transcripts.
 - `JobWorker`: pull jobs from the queue and call the service.
-- `ManagedWatcherStackReconciler`: authoritative reconciliation of `StackLock`, legacy PID file, live process checks, and unmanaged watcher-like activity into one `ReconciledProcessState`.
+- `ManagedWatcherSupervisorState`: authoritative runtime lifecycle record for the managed watcher stack.
+- `ManagedWatcherStackReconciler`: validates supervisor state against live process checks and falls back to `StackLock` and legacy PID artifacts when supervisor state is absent.
 - `WatcherControl`: start/stop/restart orchestration, compact `StatusSnapshot`, detailed watcher status, recent `TranscriptionJob`s, latest transcript lookup, and diagnostic state export.
 - `StatusSnapshot`: separates `WatcherProcessState`, `RuntimeActivityState`, and `StatusFreshness`, while process state comes from the reconciled stack result.
 
 ### Infrastructure
 
-Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (`runtimeActivityState`, queue length, current file, last error, freshness derived from `updatedAt`). Runtime ownership artifacts live alongside this status data: `runtime/managed-stack.lock.json` establishes `ManagedWatcherStack` ownership, while `.autotranscribe2-pids.json` remains as a legacy compatibility artifact. `FileSystemPoller` also persists a minimal discovery ledger in the transcript output directory so watcher restarts do not rediscover the same recordings. A lightweight tracing module writes the append-only `Diagnostic Trace` to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl` for control-flow and state-transition debugging. Lives under `src/infrastructure/`.
+Config, logging, backend adapter, watcher, runtime status: YAML config loader, `ConsoleAndFileLogger`, `TranscriptionBackend` implementation (MLX Whisper via subprocess), `FileSystemPoller` for watcher mode, `RuntimeStatus` for writing/reading `runtime/status.json` (`runtimeActivityState`, queue length, current file, last error, freshness derived from `updatedAt`). Runtime control artifacts live alongside this status data: `runtime/managed-watcher-supervisor.json` is the primary lifecycle record, `runtime/managed-stack.lock.json` remains the start-safety `StackLock`, and `.autotranscribe2-pids.json` remains a legacy compatibility artifact. `FileSystemPoller` also persists a minimal discovery ledger in the transcript output directory so watcher restarts do not rediscover the same recordings. A lightweight tracing module writes the append-only `Diagnostic Trace` to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl` for control-flow and state-transition debugging. Lives under `src/infrastructure/`.
 
 ### CLI
 

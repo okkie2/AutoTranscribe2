@@ -214,6 +214,9 @@ Details:
 
 Details:
 - Replace detached-script coordination with one long-lived authority that owns child processes, job lifecycle, and dependency state.
+- Progress on 2026-03-26:
+  - First slice implemented: `ManagedWatcherSupervisorState` is now the primary runtime truth for start/stop/status lifecycle state.
+  - Remaining work: move queue ownership and dependency ownership fully under that supervisor model, then retire legacy lock/PID reconciliation as a fallback path.
 
 ## Dependencies between actions
 

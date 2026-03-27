@@ -23,7 +23,45 @@
   - New `ConfigWriter.ts` handles targeted YAML field replacement without disturbing other config.
 - Remaining risks / follow-up:
   - Parakeet does not expose a detected language; language fallback retry in `TranscriptionService` will operate without language detection signal.
-  - No timestamps in Parakeet output; formatted markdown uses plain paragraphs only.
+
+### Parakeet chunked transcription
+
+- What changed:
+  - Added `--chunk-duration` argument to `parakeet_backend.py` (default 300 s).
+  - `parakeet_mlx` receives `chunk_duration` via `_call_supported`, which silently drops unsupported kwargs for API compatibility.
+- Failure mode addressed:
+  - Large audio files (>~30 min) exhausted the 30 GB Metal memory limit, aborting the transcription with an OOM error.
+
+### Parakeet transcript format
+
+- What changed:
+  - `parakeet_backend.py` now extracts `AlignedResult.sentences` from the model output.
+  - Sentences are grouped into paragraphs by time gap (≥20 s) or length (≥500 chars) and formatted as `**[MM:SS] Label**` headers — matching the MLX Whisper output structure.
+  - Full raw text is appended as an "Original transcript" section at the bottom.
+  - Falls back to plain paragraphs when no sentence timing is available.
+- Failure mode addressed:
+  - Parakeet transcripts were missing timestamp headers and the "Original transcript" section, producing unstructured plain text instead of the expected Markdown format.
+
+### Duplicate file suppression via durable job claims
+
+- What changed:
+  - `TranscriptionJobLedger` gained `hasClaimForAudioPath` and `claimPendingJob` methods.
+  - `FileSystemPoller` now checks the durable ledger before enqueueing a file; files already claimed are silently skipped.
+  - The `claimPendingJob` write is atomic-within-scan: a race between concurrent discovery events for the same path resolves on the first writer.
+- Failure mode addressed:
+  - Files that survived a watcher restart could be re-enqueued even though a durable ledger claim already existed, causing duplicate transcription jobs.
+- Test coverage:
+  - `dist/__tests__/JobLedgerRecovery.test.js`
+  - `dist/__tests__/WatcherControl.test.js`
+
+### Supervisor state model
+
+- What changed:
+  - New `ManagedWatcherSupervisorState.ts` module persists watcher lifecycle intent (`starting`, `running`, `stopping`, `stopped`) to a durable JSON file under the runtime directory.
+  - `ManagedWatcherStackReconciler` now reads supervisor state as the primary authority when available, falling back to process-existence checks.
+  - `ReconciledProcessState` extended with `starting` and `stopping` variants so transient phases are visible in the menu status view.
+- Failure mode addressed:
+  - Process-existence checks alone could not distinguish an intentional stop from a crash, causing the menu to show misleading state during controlled lifecycle transitions.
 
 ## 2026-03-26
 

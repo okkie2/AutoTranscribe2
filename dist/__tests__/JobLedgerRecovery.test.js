@@ -119,3 +119,51 @@ test("in-progress jobs are rehydrated as pending work after restart", () => {
     assert.ok(recoveredJob.updatedAt.getTime() > previousUpdatedAt.getTime());
     assert.equal(recoveredJob?.errorMessage, undefined);
 });
+test("durable pending job claims prevent rediscovery after restart even without the discovery ledger", () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "autotranscribe2-job-claim-restart-"));
+    const recordingsDir = path.join(rootDir, "recordings");
+    const transcriptsDir = path.join(rootDir, "transcripts");
+    const runtimeDir = path.join(rootDir, "runtime");
+    const statusPath = path.join(runtimeDir, "status.json");
+    const ledgerPath = path.join(runtimeDir, "transcription-jobs.json");
+    fs.mkdirSync(recordingsDir, { recursive: true });
+    fs.mkdirSync(runtimeDir, { recursive: true });
+    const audioPath = path.join(recordingsDir, "2026-03-27_11-30-00.m4a");
+    fs.writeFileSync(audioPath, "fake audio payload", "utf8");
+    const ledger = new TranscriptionJobLedger(ledgerPath);
+    const initialQueue = new TranscriptionJobQueue();
+    const firstPoller = new FileSystemPoller({
+        enabled: true,
+        directories: [recordingsDir],
+        includeExtensions: [".m4a"],
+        excludePatterns: [],
+        pollingIntervalSeconds: 1,
+        outputDirectory: transcriptsDir,
+        mirrorSourceStructure: true
+    }, initialQueue, logger, null, createStatusUpdater(statusPath), ledger);
+    firstPoller.scanOnce();
+    firstPoller.scanOnce();
+    assert.equal(initialQueue.getLength(), 1);
+    assert.equal(ledger.listRecords().length, 1);
+    const legacyDiscoveryLedgerPath = path.join(transcriptsDir, "discovered-audio-files.json");
+    try {
+        fs.unlinkSync(legacyDiscoveryLedgerPath);
+    }
+    catch {
+        // ignore
+    }
+    const restartedQueue = new TranscriptionJobQueue();
+    const restartedPoller = new FileSystemPoller({
+        enabled: true,
+        directories: [recordingsDir],
+        includeExtensions: [".m4a"],
+        excludePatterns: [],
+        pollingIntervalSeconds: 1,
+        outputDirectory: transcriptsDir,
+        mirrorSourceStructure: true
+    }, restartedQueue, logger, null, createStatusUpdater(statusPath), ledger);
+    restartedPoller.scanOnce();
+    restartedPoller.scanOnce();
+    assert.equal(restartedQueue.getLength(), 0);
+    assert.equal(ledger.listRecords().length, 1);
+});

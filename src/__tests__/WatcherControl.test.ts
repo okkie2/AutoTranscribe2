@@ -14,6 +14,10 @@ import {
   getStatusSnapshot,
   listRecentTranscriptionJobs
 } from "../application/WatcherControl.js";
+import {
+  getSupervisorStatePath,
+  readSupervisorState
+} from "../application/ManagedWatcherSupervisorState.js";
 
 function createTestConfig(rootDir: string): AppConfig {
   return {
@@ -278,6 +282,61 @@ test("stopWatcherControl cleans stale stack artifacts when no managed processes 
 
     assert.equal(fs.existsSync(stackLockPath(config)), false);
     assert.equal(fs.existsSync(path.resolve(".autotranscribe2-pids.json")), false);
+  });
+});
+
+test("startWatcherControl writes authoritative supervisor state for status even without stack artifacts", async () => {
+  await withTempCwd(async (rootDir) => {
+    const config = createTestConfig(rootDir);
+    const previousTestMode = process.env.AUTOTRANSCRIBE_TEST_MODE;
+    process.env.AUTOTRANSCRIBE_TEST_MODE = "1";
+
+    try {
+      await startWatcherControl(config);
+
+      fs.unlinkSync(stackLockPath(config));
+      fs.unlinkSync(path.resolve(".autotranscribe2-pids.json"));
+
+      const supervisorState = readSupervisorState(config);
+      const snapshot = getStatusSnapshot(config);
+
+      assert.ok(supervisorState);
+      assert.equal(supervisorState?.watcherProcessState, "running");
+      assert.equal(snapshot.watcherProcessState, "running");
+      assert.ok(snapshot.lines.some((line) => line.includes("Watcher process: running")));
+    } finally {
+      if (previousTestMode === undefined) {
+        delete process.env.AUTOTRANSCRIBE_TEST_MODE;
+      } else {
+        process.env.AUTOTRANSCRIBE_TEST_MODE = previousTestMode;
+      }
+    }
+  });
+});
+
+test("stopWatcherControl records stopped supervisor state after shutdown", async () => {
+  await withTempCwd(async (rootDir) => {
+    const config = createTestConfig(rootDir);
+    const previousTestMode = process.env.AUTOTRANSCRIBE_TEST_MODE;
+    process.env.AUTOTRANSCRIBE_TEST_MODE = "1";
+
+    try {
+      await startWatcherControl(config);
+      await stopWatcherControl(config);
+
+      const supervisorState = readSupervisorState(config);
+
+      assert.ok(supervisorState);
+      assert.equal(supervisorState?.watcherProcessState, "stopped");
+      assert.equal(supervisorState?.desiredState, "stopped");
+      assert.equal(fs.existsSync(getSupervisorStatePath(config)), true);
+    } finally {
+      if (previousTestMode === undefined) {
+        delete process.env.AUTOTRANSCRIBE_TEST_MODE;
+      } else {
+        process.env.AUTOTRANSCRIBE_TEST_MODE = previousTestMode;
+      }
+    }
   });
 });
 

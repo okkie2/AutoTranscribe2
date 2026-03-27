@@ -64,6 +64,22 @@ export class TranscriptionJobLedger {
         records.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
         this.writeRecords(records);
     }
+    hasClaimForAudioPath(audioFilePath) {
+        const resolvedAudioPath = path.resolve(audioFilePath);
+        return this.readRecords().some((record) => path.resolve(record.audioFilePath) === resolvedAudioPath);
+    }
+    claimPendingJob(job) {
+        const records = this.readRecords();
+        const resolvedAudioPath = path.resolve(job.audioFile.path);
+        const alreadyClaimed = records.some((record) => path.resolve(record.audioFilePath) === resolvedAudioPath);
+        if (alreadyClaimed) {
+            return false;
+        }
+        records.push(toPersistedRecord(job));
+        records.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+        this.writeRecords(records);
+        return true;
+    }
     listRecords() {
         return this.readRecords();
     }
