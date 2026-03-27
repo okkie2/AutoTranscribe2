@@ -14,6 +14,7 @@ Node/TypeScript is responsible for writing the text to a .md file.
 import argparse
 import inspect
 import json
+import math
 import re
 import sys
 
@@ -31,6 +32,13 @@ def parse_args() -> argparse.Namespace:
         dest="model_id",
         default="mlx-community/parakeet-tdt-0.6b-v3",
         help="HuggingFace model ID or short name for the Parakeet model.",
+    )
+    parser.add_argument(
+        "--chunk-duration",
+        dest="chunk_duration",
+        type=float,
+        default=300.0,
+        help="Split audio into chunks of this many seconds before transcribing (default: 300).",
     )
     return parser.parse_args()
 
@@ -71,8 +79,86 @@ def _call_supported(fn, *args, **kwargs):
     return fn(*args, **supported)
 
 
+def _format_timestamp(seconds: float) -> str:
+    total = max(0, int(math.floor(seconds)))
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def _build_short_label(paragraph_text: str, max_words: int = 6) -> str:
+    clean = paragraph_text.strip()
+    if not clean:
+        return ""
+    first_sent = re.split(r"(?<=[.!?])\s+", clean)[0]
+    words = first_sent.split()
+    if not words:
+        return ""
+    clipped = " ".join(words[:max_words])
+    clipped = clipped.rstrip(".,!?;:…")
+    return clipped
+
+
+def _format_sentences_as_markdown(sentences: list) -> str:
+    """Format AlignedSentence list into timestamped paragraphs (same structure as Whisper output)."""
+    paragraphs: list[dict] = []
+    current_start: float | None = None
+    current_parts: list[str] = []
+    current_len = 0
+    last_start: float | None = None
+
+    def flush() -> None:
+        nonlocal current_start, current_parts, current_len
+        if current_start is None or not current_parts:
+            return
+        paragraphs.append({"start": current_start, "text": " ".join(current_parts)})
+        current_start = None
+        current_parts = []
+        current_len = 0
+
+    for sent in sentences:
+        try:
+            start = float(getattr(sent, "start", 0.0))
+        except Exception:
+            start = 0.0
+        sent_text = str(getattr(sent, "text", "")).strip()
+        if not sent_text:
+            continue
+
+        start_new = current_start is None
+        if not start_new and last_start is not None and (start - last_start) >= 20.0:
+            start_new = True
+        if not start_new and current_len >= 500:
+            start_new = True
+
+        if start_new:
+            flush()
+            current_start = start
+
+        current_parts.append(sent_text)
+        current_len += len(sent_text)
+        last_start = start
+
+    flush()
+
+    if not paragraphs:
+        return ""
+
+    lines: list[str] = []
+    for para in paragraphs:
+        ts = _format_timestamp(float(para["start"]))
+        label = _build_short_label(str(para["text"]))
+        lines.append(f"**[{ts}] {label}**" if label else f"**[{ts}]**")
+        lines.append(str(para["text"]))
+        lines.append("")
+
+    return ("\n".join(lines)).rstrip() + "\n"
+
+
 def _format_as_markdown(text: str) -> str:
-    """Break plain text into readable paragraphs. No timestamps (Parakeet does not expose them)."""
+    """Break plain text into readable paragraphs (fallback when no sentence timing available)."""
     clean = text.strip()
     if not clean:
         return ""
@@ -146,9 +232,19 @@ def main() -> int:
     try:
         if model is not None:
             if hasattr(model, "transcribe_file"):
-                out = _call_supported(model.transcribe_file, args.audio_path, language=language)
+                out = _call_supported(
+                    model.transcribe_file,
+                    args.audio_path,
+                    language=language,
+                    chunk_duration=args.chunk_duration,
+                )
             elif hasattr(model, "transcribe"):
-                out = _call_supported(model.transcribe, args.audio_path, language=language)
+                out = _call_supported(
+                    model.transcribe,
+                    args.audio_path,
+                    language=language,
+                    chunk_duration=args.chunk_duration,
+                )
             else:
                 raise RuntimeError("Loaded Parakeet model has no transcribe method")
         elif hasattr(parakeet_mlx, "transcribe"):
@@ -157,6 +253,7 @@ def main() -> int:
                 args.audio_path,
                 model=resolved_id,
                 language=language,
+                chunk_duration=args.chunk_duration,
             )
         else:
             raise RuntimeError("parakeet_mlx API exposes no transcribe entry point")
@@ -166,7 +263,20 @@ def main() -> int:
             sys.stderr.write("Parakeet returned an empty transcript.\n")
             return 1
 
-        formatted = _format_as_markdown(text)
+        sentences = getattr(out, "sentences", None)
+        if isinstance(sentences, list) and sentences:
+            formatted = _format_sentences_as_markdown(sentences)
+        else:
+            formatted = ""
+
+        if not formatted.strip():
+            formatted = _format_as_markdown(text)
+
+        if text:
+            if not formatted.endswith("\n"):
+                formatted += "\n"
+            formatted += "\n---\n\nOriginal transcript\n\n"
+            formatted += text if text.endswith("\n") else text + "\n"
 
     except Exception as exc:
         sys.stderr.write(f"Transcription failed: {exc}\n")
