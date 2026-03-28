@@ -11,8 +11,10 @@ AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It 
 1. Record audio (e.g. Just Press Record on your phone).
 2. The recording syncs to your Mac via iCloud.
 3. AutoTranscribe2 picks it up from iCloud and detects the new file.
-4. Parakeet MLX (or Whisper) transcribes it locally.
-5. A titled Markdown transcript appears in your transcripts folder.
+4. AutoTranscribe2 moves this to the recordings folder.
+5. You could also manually drop a file in recordings folder.
+6. Anything in recordings folder gets picked up and LOCALLY transcribed by Parakeet MLX (or Whisper).
+7. A titled Markdown transcript appears in your transcripts folder.
 
 ---
 
