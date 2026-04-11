@@ -258,15 +258,15 @@ function reconcileFromSupervisorState(config) {
                 };
             }
             return {
-                reconciledProcessState: "error",
-                watcherProcessState: "error",
+                reconciledProcessState: "staleLock",
+                watcherProcessState: "stopped",
                 watchPid,
                 ingestPid,
                 hasLock,
                 hasLegacyPidFile,
                 runtimeStatusFresh,
                 unmanagedWatcherDetected,
-                detail: "Supervisor expected a running stack but managed processes are missing."
+                detail: "Supervisor expected a running stack, but the managed processes are gone; treating this as stale state."
             };
         case "stopped":
             if (!watchRunning && !ingestRunning) {

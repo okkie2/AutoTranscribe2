@@ -53,6 +53,8 @@ async function main() {
 
   const projectRoot = process.cwd();
   const label = autostart.label;
+  const uid = typeof process.getuid === "function" ? process.getuid() : os.userInfo().uid;
+  const launchDomain = `gui/${uid}`;
   const launchAgentsDir = path.join(os.homedir(), "Library/LaunchAgents");
   const plistPath = path.join(launchAgentsDir, `${label}.plist`);
 
@@ -64,15 +66,25 @@ async function main() {
   fs.writeFileSync(plistPath, plistContent, { encoding: "utf8" });
   console.log("[autostart:install] Wrote launch agent plist to:", plistPath);
 
-  // Reload the launch agent
-  console.log("[autostart:install] Reloading launch agent via launchctl...");
-  spawnSync("launchctl", ["unload", "-w", plistPath], { stdio: "ignore" });
-  const result = spawnSync("launchctl", ["load", "-w", plistPath], { stdio: "inherit" });
+  console.log(`[autostart:install] Refreshing launch agent in ${launchDomain}...`);
+  spawnSync("launchctl", ["bootout", launchDomain, plistPath], { stdio: "ignore" });
+
+  const result = spawnSync("launchctl", ["bootstrap", launchDomain, plistPath], {
+    stdio: "inherit"
+  });
   if (result.error) {
-    console.error("[autostart:install] Failed to load launch agent:", result.error.message);
-  } else {
-    console.log("[autostart:install] Launch agent loaded. AutoTranscribe2 will start at login via start:all.");
+    console.error("[autostart:install] Failed to bootstrap launch agent:", result.error.message);
+    process.exitCode = 1;
+    return;
   }
+
+  if (result.status !== 0) {
+    console.error(`[autostart:install] launchctl bootstrap exited with code ${result.status}.`);
+    process.exitCode = result.status ?? 1;
+    return;
+  }
+
+  console.log("[autostart:install] Launch agent loaded. AutoTranscribe2 will start at login via start:all.");
 }
 
 main().catch((err) => {
@@ -80,4 +92,3 @@ main().catch((err) => {
   console.error("[autostart:install] Unexpected error:", message);
   process.exit(1);
 });
-

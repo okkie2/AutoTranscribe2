@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getCompactStatusSnapshot, getCompactStatusSnapshotLines, getLatestTranscript, reconcileManagedWatcherStack, startWatcherControl, stopWatcherControl, getStatusSnapshot, listRecentTranscriptionJobs } from "../application/WatcherControl.js";
-import { getSupervisorStatePath, readSupervisorState } from "../application/ManagedWatcherSupervisorState.js";
+import { getSupervisorStatePath, readSupervisorState, writeSupervisorState } from "../application/ManagedWatcherSupervisorState.js";
 function createTestConfig(rootDir) {
     return {
         watch: {
@@ -191,6 +191,22 @@ test("reconcileManagedWatcherStack returns staleLock when artifacts remain but p
         assert.equal(reconciliation.watcherProcessState, "stopped");
     });
 });
+test("reconcileManagedWatcherStack treats a rebooted running supervisor as stale state", () => {
+    return withTempCwd((rootDir) => {
+        const config = createTestConfig(rootDir);
+        fs.mkdirSync(path.dirname(getSupervisorStatePath(config)), { recursive: true });
+        writeSupervisorState(config, {
+            desiredState: "running",
+            watcherProcessState: "running",
+            watchPid: 999998,
+            ingestPid: 999999,
+            detail: "Managed watcher stack is running."
+        });
+        const reconciliation = reconcileManagedWatcherStack(config);
+        assert.equal(reconciliation.reconciledProcessState, "staleLock");
+        assert.equal(reconciliation.watcherProcessState, "stopped");
+    });
+});
 test("startWatcherControl refuses duplicate start when the managed stack is already running", async () => {
     await withTempCwd(async (rootDir) => {
         const config = createTestConfig(rootDir);
@@ -222,6 +238,36 @@ test("startWatcherControl writes authoritative supervisor state for status even 
             assert.equal(supervisorState?.watcherProcessState, "running");
             assert.equal(snapshot.watcherProcessState, "running");
             assert.ok(snapshot.lines.some((line) => line.includes("Watcher process: running")));
+        }
+        finally {
+            if (previousTestMode === undefined) {
+                delete process.env.AUTOTRANSCRIBE_TEST_MODE;
+            }
+            else {
+                process.env.AUTOTRANSCRIBE_TEST_MODE = previousTestMode;
+            }
+        }
+    });
+});
+test("startWatcherControl recovers from stale running supervisor state after reboot", async () => {
+    await withTempCwd(async (rootDir) => {
+        const config = createTestConfig(rootDir);
+        fs.mkdirSync(path.dirname(getSupervisorStatePath(config)), { recursive: true });
+        writeSupervisorState(config, {
+            desiredState: "running",
+            watcherProcessState: "running",
+            watchPid: 999998,
+            ingestPid: 999999,
+            detail: "Managed watcher stack is running."
+        });
+        const previousTestMode = process.env.AUTOTRANSCRIBE_TEST_MODE;
+        process.env.AUTOTRANSCRIBE_TEST_MODE = "1";
+        try {
+            await startWatcherControl(config);
+            const supervisorState = readSupervisorState(config);
+            assert.ok(supervisorState);
+            assert.equal(supervisorState?.watcherProcessState, "running");
+            assert.equal(supervisorState?.desiredState, "running");
         }
         finally {
             if (previousTestMode === undefined) {
