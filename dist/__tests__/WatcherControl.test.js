@@ -279,6 +279,29 @@ test("startWatcherControl recovers from stale running supervisor state after reb
         }
     });
 });
+test("startWatcherControl recovers from partial stack (one orphan process alive)", async () => {
+    await withTempCwd(async (rootDir) => {
+        const config = createTestConfig(rootDir);
+        writeStackArtifacts(config, { watchPid: process.pid, ingestPid: 999999 });
+        const previousTestMode = process.env.AUTOTRANSCRIBE_TEST_MODE;
+        process.env.AUTOTRANSCRIBE_TEST_MODE = "1";
+        try {
+            await startWatcherControl(config);
+            const supervisorState = readSupervisorState(config);
+            assert.ok(supervisorState);
+            assert.equal(supervisorState?.watcherProcessState, "running");
+            assert.equal(supervisorState?.desiredState, "running");
+        }
+        finally {
+            if (previousTestMode === undefined) {
+                delete process.env.AUTOTRANSCRIBE_TEST_MODE;
+            }
+            else {
+                process.env.AUTOTRANSCRIBE_TEST_MODE = previousTestMode;
+            }
+        }
+    });
+});
 test("stopWatcherControl records stopped supervisor state after shutdown", async () => {
     await withTempCwd(async (rootDir) => {
         const config = createTestConfig(rootDir);

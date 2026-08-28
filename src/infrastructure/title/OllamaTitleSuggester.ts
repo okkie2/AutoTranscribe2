@@ -16,6 +16,8 @@ export interface OllamaTitleHealthResult {
   status?: number;
 }
 
+const FALLBACK_OLLAMA_MODELS = ["qwen2.5:7b", "mistral-small3.2:latest", "nemotron-3-nano:4b"] as const;
+
 function extractJsonObject(text: string): any {
   const fenced = text.match(/```json\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : text;
@@ -82,9 +84,9 @@ function buildPrompt(transcriptExcerpt: string, languageHint: string | null, max
 function pickExcerpt(fullText: string): string {
   // Heuristic: skip some initial noise and keep a bounded excerpt.
   const trimmed = fullText.replace(/^\s+/, "");
-  const start = Math.min(1200, trimmed.length);
-  const window = trimmed.slice(start, start + 4000);
-  return window || trimmed.slice(0, 4000);
+  const start = Math.min(600, trimmed.length);
+  const window = trimmed.slice(start, start + 2000);
+  return window || trimmed.slice(0, 2000);
 }
 
 async function readResponseTextSafely(res: Response): Promise<string> {
@@ -122,7 +124,8 @@ function formatErrorMessage(err: unknown): string {
 
 async function postToOllama(
   config: TitleConfig,
-  prompt: string
+  prompt: string,
+  model: string
 ): Promise<{ responseText: string; status: number }> {
   if (!config.ollama) {
     throw new OllamaTitleError("Ollama title configuration is missing.");
@@ -139,26 +142,26 @@ async function postToOllama(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: config.ollama.model,
+          model,
           prompt,
           stream: false,
-          options: { temperature: config.ollama.temperature }
+          format: "json",
+          options: {
+            temperature: config.ollama.temperature,
+            num_predict: 32
+          }
         }),
         signal: controller.signal
       });
     } catch (err) {
       const message = formatErrorMessage(err);
-      throw new OllamaTitleError(
-        `Ollama request failed for ${config.ollama.model} at ${config.ollama.endpoint}: ${message}`
-      );
+      throw new OllamaTitleError(`Ollama request failed for ${model} at ${config.ollama.endpoint}: ${message}`);
     }
 
     if (!res.ok) {
       const body = trimForLog(await readResponseTextSafely(res));
       const bodySuffix = body ? ` Body: ${body}` : "";
-      throw new OllamaTitleError(
-        `Ollama returned HTTP ${res.status} for ${config.ollama.model} at ${config.ollama.endpoint}.${bodySuffix}`
-      );
+      throw new OllamaTitleError(`Ollama returned HTTP ${res.status} for ${model} at ${config.ollama.endpoint}.${bodySuffix}`);
     }
 
     let data: any;
@@ -197,7 +200,7 @@ export async function probeOllamaTitleHealth(config: TitleConfig): Promise<Ollam
   ].join("\n");
 
   try {
-    await postToOllama(config, prompt);
+    await postToOllama(config, prompt, config.ollama.model);
     return {
       ok: true,
       endpoint: config.ollama.endpoint,
@@ -233,18 +236,42 @@ export class OllamaTitleSuggester implements TitleSuggester {
     }
 
     const excerpt = pickExcerpt(input.transcriptText);
-    const prompt = buildPrompt(excerpt, this.config.languageHint ?? input.languageHint ?? null, this.config.maxLength);
-
-    const { responseText } = await postToOllama(this.config, prompt);
-    const parsed = extractJsonObject(responseText);
-    const title = validateTitle(String(parsed?.title ?? ""), this.config.maxLength);
-
-    if (!title) {
-      throw new OllamaTitleError(
-        `Ollama returned no usable title for ${this.config.ollama!.model} at ${this.config.ollama!.endpoint}.`
-      );
+    const ollama = this.config.ollama;
+    if (!ollama) {
+      throw new OllamaTitleError("Ollama title configuration is missing.");
     }
 
-    return title;
+    const prompt = buildPrompt(excerpt, this.config.languageHint ?? input.languageHint ?? null, this.config.maxLength);
+
+    const primaryModel = ollama.model;
+    const modelCandidates = [primaryModel, ...FALLBACK_OLLAMA_MODELS].filter(
+      (model, index, models) => models.indexOf(model) === index
+    );
+
+    let lastError: unknown = null;
+    for (const model of modelCandidates) {
+      try {
+        const { responseText } = await postToOllama(this.config, prompt, model);
+        const parsed = extractJsonObject(responseText);
+        const title = validateTitle(String(parsed?.title ?? ""), this.config.maxLength);
+
+        if (!title) {
+          lastError = new OllamaTitleError(
+            `Ollama returned no usable title for ${model} at ${ollama.endpoint}.`
+          );
+          continue;
+        }
+
+        return title;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (lastError instanceof Error) {
+      throw lastError;
+    }
+
+    throw new OllamaTitleError(`Ollama returned no usable title for ${primaryModel} at ${ollama.endpoint}.`);
   }
 }

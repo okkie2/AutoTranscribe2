@@ -55,6 +55,47 @@ test("OllamaTitleSuggester returns a validated title from Ollama JSON", async ()
   }
 });
 
+test("OllamaTitleSuggester falls back to a smaller Ollama model when the primary model fails", async () => {
+  const requestedModels: Array<string> = [];
+  const restoreFetch = installFetchStub(async (_input, init) => {
+    const body = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+    requestedModels.push(String(body.model ?? ""));
+
+    if (body.model === "qwen3:14b") {
+      throw new Error("This operation was aborted");
+    }
+
+    return new Response(
+      JSON.stringify({
+        response: '{"title":"Fallback titel"}'
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      }
+    );
+  });
+
+  try {
+    const suggester = new OllamaTitleSuggester({
+      ...baseConfig,
+      ollama: {
+        ...baseConfig.ollama!,
+        model: "qwen3:14b"
+      }
+    });
+    const title = await suggester.suggestTitle({
+      transcriptText: "We bespreken de migratie van systemen naar de cloud.",
+      fallbackTitle: "2026-03-26_10-18-36"
+    });
+
+    assert.equal(title, "Fallback titel");
+    assert.deepEqual(requestedModels.slice(0, 2), ["qwen3:14b", "qwen2.5:7b"]);
+  } finally {
+    restoreFetch();
+  }
+});
+
 test("OllamaTitleSuggester throws a detailed error on HTTP failure", async () => {
   const restoreFetch = installFetchStub(async () =>
     new Response("model 'llama3.1:8b-instruct-q4_K_M' not found", {

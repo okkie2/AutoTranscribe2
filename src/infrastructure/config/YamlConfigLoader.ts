@@ -117,7 +117,7 @@ function toTitleConfig(raw: any): TitleConfig {
       endpoint: String(o.endpoint ?? "http://127.0.0.1:11434/api/generate"),
       model: String(o.model ?? "llama3.1:8b-instruct-q4_K_M"),
       temperature: Number(o.temperature ?? 0.2),
-      timeoutMs: Number(o.timeout_ms ?? 60000)
+      timeoutMs: Number(o.timeout_ms ?? 120000)
     };
   }
 

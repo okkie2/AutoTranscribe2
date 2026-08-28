@@ -286,7 +286,7 @@ export async function startWatcherControl(config: AppConfig): Promise<void> {
     observed_state: observedState,
     metadata: {
       guard: "managed_stack_start_allowed",
-      evaluated_value: ["stopped", "staleLock"].includes(reconciliation.reconciledProcessState),
+      evaluated_value: ["stopped", "staleLock", "partial"].includes(reconciliation.reconciledProcessState),
       source_of_truth: "reconciled_process_state"
     }
   });
@@ -307,7 +307,7 @@ export async function startWatcherControl(config: AppConfig): Promise<void> {
     });
     throw new Error("Managed watcher stack is already running.");
   }
-  if (["partial", "inconsistent", "error"].includes(reconciliation.reconciledProcessState)) {
+  if (["inconsistent", "error"].includes(reconciliation.reconciledProcessState)) {
     traceEvent({
       event: "state_mismatch_detected",
       source: "WatcherControl",
@@ -323,6 +323,18 @@ export async function startWatcherControl(config: AppConfig): Promise<void> {
       metadata: { reason: reconciliation.detail }
     });
     throw new Error(`Managed watcher stack is in an inconsistent state: ${reconciliation.detail}`);
+  }
+  if (reconciliation.reconciledProcessState === "partial") {
+    console.warn("[WatcherControl] Partial stack detected; killing orphan process and cleaning up before restart.");
+    if (!isTestMode()) {
+      for (const pid of [reconciliation.watchPid, reconciliation.ingestPid]) {
+        if (pid && isPidRunning(pid)) {
+          try { process.kill(pid, "SIGINT"); } catch { /* ignore */ }
+        }
+      }
+    }
+    cleanupStackArtifacts(config);
+    publishSupervisorState(config, "stopped", "stopped", null, null, "Cleaned up partial managed stack; ready to restart.");
   }
   if (reconciliation.reconciledProcessState === "staleLock") {
     cleanupStackArtifacts(config);

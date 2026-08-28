@@ -29,7 +29,10 @@ function buildPlist(label, projectRoot) {
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
-  <true/>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
   <key>StandardOutPath</key>
   <string>${path.join(os.homedir(), "Library/Logs/autotranscribe2.out.log")}</string>
   <key>StandardErrorPath</key>

@@ -17,6 +17,10 @@ async function main() {
 }
 main().catch((err) => {
     const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("already running")) {
+        console.log("[startAll] Managed watcher stack is already running; nothing to do.");
+        process.exit(0);
+    }
     console.error("[startAll] Unexpected error:", message);
     process.exit(1);
 });
