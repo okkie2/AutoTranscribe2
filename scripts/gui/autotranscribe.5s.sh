@@ -32,6 +32,16 @@ if [[ ! -r "$NODE_PATH_FILE" ]]; then
 fi
 
 NODE_BINARY="$(<"$NODE_PATH_FILE")"
+if [[ ! -d "$REPO_ROOT" ]]; then
+  render_unavailable "Configured AutoTranscribe2 repository is unavailable. Run npm run gui:install again."
+  exit 0
+fi
+
+if ! cd "$REPO_ROOT"; then
+  render_unavailable "Could not open the configured AutoTranscribe2 repository."
+  exit 0
+fi
+
 if [[ ! -f "$REPO_ROOT/dist/cli/statusJson.js" || ! -f "$REPO_ROOT/dist/cli/swiftBar.js" ]]; then
   render_unavailable "Compiled GUI commands are unavailable. Run npm run gui:install again."
   exit 0
