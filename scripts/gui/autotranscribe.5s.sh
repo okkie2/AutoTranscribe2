@@ -10,6 +10,7 @@ set -uo pipefail
 
 GUI_CONFIG_DIR="${AUTOTRANSCRIBE_GUI_CONFIG_DIR:-$HOME/Library/Application Support/AutoTranscribe2}"
 ROOT_PATH_FILE="$GUI_CONFIG_DIR/gui-root-path"
+NODE_PATH_FILE="$GUI_CONFIG_DIR/gui-node-path"
 ACTION_LOG="$HOME/Library/Logs/AutoTranscribe2/menu-bar-actions.log"
 
 render_unavailable() {
@@ -25,8 +26,19 @@ if [[ ! -r "$ROOT_PATH_FILE" ]]; then
 fi
 
 REPO_ROOT="$(<"$ROOT_PATH_FILE")"
+if [[ ! -r "$NODE_PATH_FILE" ]]; then
+  render_unavailable "Node.js path is unavailable. Run npm run gui:install again."
+  exit 0
+fi
+
+NODE_BINARY="$(<"$NODE_PATH_FILE")"
 if [[ ! -f "$REPO_ROOT/dist/cli/statusJson.js" || ! -f "$REPO_ROOT/dist/cli/swiftBar.js" ]]; then
   render_unavailable "Compiled GUI commands are unavailable. Run npm run gui:install again."
+  exit 0
+fi
+
+if [[ ! -x "$NODE_BINARY" ]]; then
+  render_unavailable "Configured Node.js executable is unavailable. Run npm run gui:install again."
   exit 0
 fi
 
@@ -36,17 +48,17 @@ run_action() {
 
   case "$action" in
     start)
-      node "$REPO_ROOT/dist/cli/startAll.js" >>"$ACTION_LOG" 2>&1
+      "$NODE_BINARY" "$REPO_ROOT/dist/cli/startAll.js" >>"$ACTION_LOG" 2>&1
       ;;
     stop)
-      node "$REPO_ROOT/dist/cli/stopAll.js" >>"$ACTION_LOG" 2>&1
+      "$NODE_BINARY" "$REPO_ROOT/dist/cli/stopAll.js" >>"$ACTION_LOG" 2>&1
       ;;
     restart)
-      node "$REPO_ROOT/dist/cli/restartAll.js" >>"$ACTION_LOG" 2>&1
+      "$NODE_BINARY" "$REPO_ROOT/dist/cli/restartAll.js" >>"$ACTION_LOG" 2>&1
       ;;
     open-transcripts)
       local transcript
-      transcript="$(node "$REPO_ROOT/dist/cli/statusJson.js" | node -e 'let data=""; process.stdin.on("data", (chunk) => { data += chunk; }); process.stdin.on("end", () => { try { const value = JSON.parse(data).latestTranscript; process.stdout.write(value ?? ""); } catch { process.exit(1); } });')"
+      transcript="$("$NODE_BINARY" "$REPO_ROOT/dist/cli/statusJson.js" | "$NODE_BINARY" -e 'let data=""; process.stdin.on("data", (chunk) => { data += chunk; }); process.stdin.on("end", () => { try { const value = JSON.parse(data).latestTranscript; process.stdout.write(value ?? ""); } catch { process.exit(1); } });')"
       if [[ -n "$transcript" ]]; then
         open "$(dirname "$transcript")" >>"$ACTION_LOG" 2>&1
       fi
@@ -63,6 +75,6 @@ if [[ "${1:-}" == "action" ]]; then
   exit $?
 fi
 
-if ! node "$REPO_ROOT/dist/cli/statusJson.js" | node "$REPO_ROOT/dist/cli/swiftBar.js" "$0"; then
+if ! "$NODE_BINARY" "$REPO_ROOT/dist/cli/statusJson.js" | "$NODE_BINARY" "$REPO_ROOT/dist/cli/swiftBar.js" "$0"; then
   render_unavailable "The status command failed. See $ACTION_LOG."
 fi
