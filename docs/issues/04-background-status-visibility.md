@@ -2,21 +2,21 @@
 
 ## Problem
 
-When AutoTranscribe2 runs in the background (e.g. via autostart or `start:all`), users have no quick way to see whether it is running, idle, processing, or in an error state. They must check logs or process lists.
+When AutoTranscribe2 runs in the background, users need a quick view of whether it is idle, working, in an error state, or unavailable.
 
 ## Proposed solution
 
-Provide a lightweight visual indicator that AutoTranscribe2 is running and what state it is in:
+The SwiftBar MVP provides a lightweight menu-bar indicator that reads the existing JSON status contract and uses existing lifecycle commands. It does not own the watcher or queue state.
 
 - **Idle** – watcher running, no job in progress.
 - **Processing** – currently transcribing one or more files.
 - **Error / attention needed** – e.g. backend repeatedly failing, or a clear failure that needs user action.
 
-First direction: explore a small macOS menu bar or status item that shows these states and optionally opens logs or docs. Implementation can be a thin wrapper that reads from the same process/queue or a small sidecar that the main processes signal.
+The wrapper refreshes every five seconds and reports `AT idle`, `AT working`, `AT error`, or `AT stale`. Future work is limited to validating it against real runtime states and considering richer detail only when needed.
 
 ## Acceptance criteria
 
-- [ ] User can see at a glance that AutoTranscribe2 is running (e.g. menu bar or status item).
-- [ ] At least two states are distinguishable: idle vs processing (or “busy”).
-- [ ] Optional: error/attention state is indicated when appropriate.
-- [ ] Solution works when the app is started via autostart or `start:all`.
+- [x] User can see at a glance that AutoTranscribe2 is running through the SwiftBar item.
+- [x] Idle, working, error, and stale states are distinguishable.
+- [x] The wrapper uses the same runtime state whether the watcher is started by autostart or `start:all`.
+- [ ] Validate the wrapper during real error and stale runtime scenarios.

@@ -59,6 +59,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
 - **Simple operational menu:** `autotranscribe menu` opens the `WatcherControl` menu with an always-visible compact `StatusSnapshot`, manual refresh, status, start/stop/restart, recent Transcription Jobs, and the Latest Transcript.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms (activity, freshness, queue, current job; data from `runtime/status.json`). Press Ctrl+C to exit.
+- **Menu-bar wrapper:** with SwiftBar installed, `npm run gui:install` adds a five-second status and lifecycle-control view over the existing CLI without owning runtime state.
 - **Parakeet MLX or MLX Whisper** on Apple Silicon; switch backend from the menu or via `config.yaml`; optional Ollama for titles
 - **Switch Backend:** menu option toggles between Parakeet MLX (recommended, 3× faster, lower WER) and MLX Whisper; takes effect on next watcher start
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom

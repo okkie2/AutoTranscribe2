@@ -53,7 +53,20 @@ which autotranscribe   # should print nothing
 
 ---
 
-## 4. Remove the repository
+## 4. Remove the menu-bar wrapper (if installed)
+
+Remove the SwiftBar plugin before removing the repository, so the menu bar does not retain a stale reference to it:
+
+```bash
+cd ~/Code/AutoTranscribe2
+npm run gui:uninstall
+```
+
+If you used a custom SwiftBar plugin folder, use the same `SWIFTBAR_PLUGIN_DIR` value as during installation.
+
+---
+
+## 5. Remove the repository
 
 This removes the code, the Python virtual environment, the built output,
 and all runtime state files.
@@ -66,7 +79,7 @@ If you cloned to a different location, substitute that path.
 
 ---
 
-## 5. Remove data directories (your choice)
+## 6. Remove data directories (your choice)
 
 These directories contain your recordings and transcripts.
 **Delete them only if you no longer need the files inside.**
@@ -89,7 +102,7 @@ rm -rf ~/Documents/AutoTranscribe2
 
 ---
 
-## 6. Remove the diagnostic trace
+## 7. Remove the diagnostic trace
 
 AutoTranscribe2 writes a trace log to:
 
@@ -99,7 +112,7 @@ rm -rf ~/Library/Logs/AutoTranscribe2
 
 ---
 
-## 7. Remove Ollama (optional)
+## 8. Remove Ollama (optional)
 
 Ollama may be used by other applications on your Mac (for example, Thunderbird AI
 or other local LLM tools). Only remove it if no other app depends on it.
@@ -131,7 +144,7 @@ Reference: https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-unins
 
 ---
 
-## 8. Remove Node.js (optional)
+## 9. Remove Node.js (optional)
 
 Node.js is commonly used by many development tools. Only remove it if nothing
 else on your Mac depends on it.
@@ -144,7 +157,7 @@ brew uninstall node
 
 ---
 
-## 9. Remove Python 3 (optional)
+## 10. Remove Python 3 (optional)
 
 Python 3 is a system-level tool used by many applications. Only remove it if
 you are certain nothing else depends on it.
@@ -167,6 +180,7 @@ completed step 4.
 | Stop watcher | `npm run stop:all` | Skip if already stopped |
 | Autostart agent | `launchctl unload ...` + `rm ...` | Skip if not installed |
 | Global CLI link | `npm unlink -g autotranscribe2` | Skip if not linked |
+| SwiftBar wrapper | `npm run gui:uninstall` | Skip if not installed |
 | Repository folder | `rm -rf ~/Code/AutoTranscribe2` | Required for clean uninstall |
 | Data directories | `rm -rf ~/Documents/AutoTranscribe2` | Optional — contains your transcripts |
 | Diagnostic trace | `rm -rf ~/Library/Logs/AutoTranscribe2` | Optional |

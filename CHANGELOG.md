@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-09-01
+
+- **feat: add SwiftBar menu wrapper** — Added a five-second macOS menu-bar view, JSON status command, existing start/stop/restart controls, and safe install/uninstall scripts. The wrapper reads existing runtime state and does not own transcription queues.
+- **fix: make the SwiftBar wrapper work outside an interactive shell** — The installer records the Node executable and the plugin runs commands from the configured repository root, so it works in SwiftBar's restricted environment.
+
 ## 2026-06-16
 
 - **fix: recover from partial watcher stack on startup** — `startWatcherControl` now handles the `partial` reconciled state (one managed process alive) by sending SIGINT to the orphan and cleaning up before attempting a fresh start, instead of throwing an unrecoverable error. Prevents the crash loop that occurs when the watcher or ingest process dies but the other survives across a launchd restart.

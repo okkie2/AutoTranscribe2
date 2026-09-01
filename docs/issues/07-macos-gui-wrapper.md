@@ -2,20 +2,20 @@
 
 ## Problem
 
-Power users can use the CLI and autostart, but there is no lightweight GUI for users who prefer a visible app (e.g. menu bar or small window) to start/stop the pipeline or see status.
+The SwiftBar MVP now provides a lightweight visible wrapper for status and existing lifecycle controls. A richer native macOS app may still be useful if it needs controls or settings beyond SwiftBar's menu model.
 
 ## Proposed solution
 
-Explore a small macOS GUI or menu bar app that:
+Keep the existing SwiftBar MVP as the thin wrapper. Explore a native macOS menu-bar app only if it needs to:
 
-- Reuses the same core services (TranscriptionService, watcher orchestration, config).
-- Does not shell out to the CLI for core behaviour; calls the same application layer.
-- Surfaces start/stop, basic status, and optionally logs or transcript list.
+- provide richer controls, settings, notifications, or history than SwiftBar can reasonably support
+- preserve the existing JSON status and lifecycle-command contract, or replace it deliberately with equivalent application boundaries
+- avoid creating a second watcher, queue, or runtime-state store
 
-This is a future idea; the current codebase is already structured so that a GUI can depend on the application layer without duplicating logic. Implementation can be a separate package or target (e.g. Electron, Swift menu bar app, or similar) that imports or spawns the Node services.
+The implemented MVP is a SwiftBar script that consumes compiled CLI commands. A future native app is optional; it is not required for the current operational workflow.
 
 ## Acceptance criteria
 
-- [ ] Design or spike exists for a small GUI or menu bar app that uses the existing core.
-- [ ] Core remains CLI-agnostic; no hard coupling from application layer to CLI.
-- [ ] Optional: minimal working prototype (e.g. “Start” / “Stop” and status) that runs the same pipeline as `start:all` / `stop:all`.
+- [x] A working SwiftBar MVP exposes status plus Start, Stop, Restart, and Open transcript folder actions.
+- [x] The wrapper does not create a second watcher, queue, or runtime-state store.
+- [ ] Evaluate a native app only after SwiftBar's limits are demonstrated by real use.

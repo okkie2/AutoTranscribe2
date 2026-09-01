@@ -337,6 +337,26 @@ launchctl list | grep autotranscribe
 
 ---
 
+## Optional menu-bar wrapper
+
+The SwiftBar wrapper shows the existing watcher state and provides Start, Stop, Restart, and Open transcript folder actions. It does not own transcription queues or run another watcher.
+
+1. Install and launch [SwiftBar](https://swiftbar.app/). On first launch, select a plugin folder. The default used below is:
+
+   ```text
+   ~/Library/Application Support/SwiftBar/Plugins
+   ```
+
+2. From the repository root, run:
+
+   ```bash
+   npm run gui:install
+   ```
+
+The item refreshes every five seconds. `AT stale` means the wrapper cannot obtain a current status; reinstall it after moving the repository or changing Node.js installations. For a custom SwiftBar plugin folder, run `SWIFTBAR_PLUGIN_DIR="/path/to/plugins" npm run gui:install`.
+
+---
+
 ## 15. Make the CLI available on your PATH (optional)
 
 If you want to type `autotranscribe` from any directory instead of always
@@ -367,6 +387,8 @@ To undo this at any time: `npm unlink -g autotranscribe2`
 | Logs | `~/Documents/AutoTranscribe2/logs/` |
 | Runtime state | `~/Code/AutoTranscribe2/runtime/` |
 | Diagnostic trace | `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl` |
+| SwiftBar plugin (optional) | `~/Library/Application Support/SwiftBar/Plugins/autotranscribe.5s.sh` |
+| SwiftBar wrapper configuration (optional) | `~/Library/Application Support/AutoTranscribe2/` |
 | Autostart agent | `~/Library/LaunchAgents/com.autotranscribe2.startall.plist` |
 | Ollama models | `~/.ollama/models/` |
 | Python venv | `~/Code/AutoTranscribe2/.venv/` |

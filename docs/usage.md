@@ -103,6 +103,24 @@ Press **Ctrl+C** to exit the dashboard cleanly.
 
 If the status file is missing or invalid, the dashboard shows fallbacks (`-`) and the path it looked for. If data is older than about 30 seconds, freshness is shown as `stale` (dim).
 
+## Machine-readable status and menu-bar wrapper
+
+Use the single-snapshot command when a script or UI needs the existing runtime state without scraping the terminal dashboard:
+
+```bash
+npm run status:json
+```
+
+It reports status freshness, managed watcher lifecycle, current activity and file, durable transcription-job counts, the latest transcript, and the latest actionable error. Missing runtime state is reported as `missing` or `unknown`; it is never treated as idle.
+
+With [SwiftBar](https://swiftbar.app/) installed, add the optional menu-bar wrapper from the repository root:
+
+```bash
+npm run gui:install
+```
+
+It refreshes every five seconds and shows `AT idle`, `AT working`, `AT error`, or `AT stale`. Its Start, Stop, and Restart actions use `start:all`, `stop:all`, and `restart:all`; it never owns a watcher, moves recordings, or changes queue state directly. Use `npm run gui:uninstall` before deleting the repository. If SwiftBar uses a custom plugin folder, set `SWIFTBAR_PLUGIN_DIR` when installing or uninstalling. Action output is written to `~/Library/Logs/AutoTranscribe2/menu-bar-actions.log`.
+
 ## Autostart on macOS
 
 1. In `config.yaml`, set `autostart.enabled: true` and `autostart.label: "com.autotranscribe2.startall"`.
@@ -117,11 +135,12 @@ This installs a launchd plist that runs `npm run start:all` at login. Logs go to
 
 Autostart uses the same single-instance guard as the menu and `start:all`. If a valid managed stack already owns runtime control, launchd-triggered startup is refused instead of creating duplicates.
 
-### start:all and stop:all
+### start:all, stop:all, and restart:all
 
 - **start:all:** Loads config, acquires the `StackLock`, checks Ollama when needed, starts `ingest:jpr` and `autotranscribe watch`, then records lifecycle truth in `runtime/managed-watcher-supervisor.json` and keeps lock/PID artifacts for start safety and compatibility.
 - **ingest:jpr:** Polls the configured Just Press Record iCloud folder every 3 seconds, waits for each `.m4a` file to stabilize, then copies it into the recordings folder and removes the source file.
 - **stop:all:** Reconciles the managed watcher stack, sends `SIGINT` only to the managed processes it owns, and then removes lock/PID artifacts.
+- **restart:all:** Uses the same watcher control path to stop the managed stack cleanly and start it again.
 - **menu:** Reuses the same watcher control path for start/stop/restart, plus shows a static `StatusSnapshot`, recent Transcription Jobs, and the Latest Transcript.
 
 ---

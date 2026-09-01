@@ -2,7 +2,7 @@
 
 ## Overview
 
-AutoTranscribe2 is built in layers: domain, application, infrastructure, and CLI. The Python MLX Whisper backend is invoked as a subprocess. Core logic is CLI-agnostic so a future GUI (e.g. menu bar app) can reuse the same services.
+AutoTranscribe2 is built in layers: domain, application, infrastructure, and CLI. The Python Parakeet MLX or MLX Whisper backend is invoked as a subprocess. An optional SwiftBar wrapper consumes the CLI's read-only JSON status contract and existing lifecycle commands; it does not own runtime state or transcription queues. A native macOS menu-bar app remains a possible later replacement.
 
 ## Pipeline (flow diagram)
 
@@ -41,6 +41,8 @@ High-level orchestration lives under `src/application/`.
 - `ManagedWatcherStackReconciler`: validates supervisor state against live process checks and falls back to `StackLock` and legacy PID artifacts when supervisor state is absent.
 - `WatcherControl`: start/stop/restart orchestration, compact `StatusSnapshot`, detailed watcher status, recent `TranscriptionJob`s, latest transcript lookup, and diagnostic state export.
 - `StatusSnapshot`: separates `WatcherProcessState`, `RuntimeActivityState`, and `StatusFreshness`, while process state comes from the reconciled stack result.
+- `JsonStatusSnapshot`: combines runtime status, supervisor state, and durable job-ledger counts for non-interactive consumers.
+- `SwiftBarMenu`: renders that snapshot as SwiftBar-compatible menu output.
 
 ### Infrastructure
 
@@ -54,7 +56,7 @@ Entry point and commands live under `src/cli/`.
 - `menu.ts`: terminal rendering, input loop, and live detailed status subview.
 - `menuActions.ts`: applicability checks, confirmations, and execution handlers for menu actions.
 - `startAll`, `stopAll`, and launchd autostart all share the same `WatcherControl` single-instance path, so duplicate stacks are refused centrally rather than by per-command heuristics.
-- Additional entry scripts: `status` (read and print runtime status), `autostartInstall`, `ingestJustPressRecord`, `titlePreview`.
+- Additional entry scripts: `status` (live terminal dashboard), `statusJson` (one JSON snapshot), `swiftBar` (menu renderer), `startAll`, `stopAll`, `restartAll`, `autostartInstall`, `ingestJustPressRecord`, and `titlePreview`.
 
 ### Python backend
 
@@ -71,8 +73,9 @@ Both return JSON with `text`, `formatted_markdown`, and `language`. Switch from 
 
 - **`src/domain/`** – AudioFile, TranscriptionJob, TranscriptionJobState, Transcript, TranscriptionJobQueue, WatchConfiguration
 - **`src/infrastructure/`** – config (YAML), logging, backend (MLX Whisper), watcher (FileSystemPoller), status (RuntimeStatus → `runtime/status.json`)
-- **`src/application/`** – TranscriptionService, JobWorker, ManagedWatcherStackReconciler, WatcherControl, StatusSnapshot
-- **`src/cli/`** – CLI entry (`watch`, `menu`), menuActions, status viewer, startAll, stopAll, ingest, titlePreview
+- **`src/application/`** – TranscriptionService, JobWorker, ManagedWatcherStackReconciler, WatcherControl, StatusSnapshot, JsonStatusSnapshot, SwiftBarMenu
+- **`src/cli/`** – CLI entry (`watch`, `menu`), menuActions, status viewers/renderers, startAll, stopAll, restartAll, ingest, titlePreview
+- **`scripts/gui/`** – SwiftBar plugin plus install and uninstall scripts
 - **`py-backend/`** – `parakeet_backend.py` (default), `mlx_whisper_backend.py` (alternative), `timestamp_preview.py` for one-off formatted preview
 - **`config.yaml`** – main configuration
 - **`UbiquitousLanguageGlossary.md`** – domain glossary

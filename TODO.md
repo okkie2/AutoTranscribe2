@@ -13,6 +13,7 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 - **Unit tests** – `npm test` runs build and unit tests; integration for the watch flow is manual (run watcher, add file, check transcript).
 - **Unified start/stop** – `npm run start:all` (build, Ollama check, ingest:jpr + watcher); `npm run stop:all` (SIGINT via PID file).
 - **Config-driven autostart** – `autostart.enabled` / `autostart.label` in `config.yaml`; `npm run autostart:install` writes launchd plist for login.
+- **SwiftBar menu-bar wrapper** – `npm run gui:install` adds a five-second read-only status view with existing start/stop/restart controls. `npm run gui:uninstall` removes only the plugin.
 
 ---
 
@@ -41,13 +42,9 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 
 ### Priority 2 — Usability
 
-- **Background status visibility**
-  - Provide a lightweight visual clue that AutoTranscribe2 is running in the background.
-  - Indicate whether the app is:
-    - idle
-    - processing
-    - error / attention needed
-  - First direction: explore a small macOS menu bar or status item.
+- **Improve the menu-bar wrapper**
+  - Validate the SwiftBar wrapper during normal, active, error, and stale runtime states.
+  - Consider notifications or richer queue detail only after real usage identifies a need.
 
 - **CLI installation**
   - `INSTALL.md` documents the full install sequence including `npm link` for PATH access.
@@ -67,8 +64,8 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 
 ### Future ideas
 
-- **macOS GUI wrapper**
-  - Explore a small GUI or menu bar app that reuses the same core services.
+- **Native macOS menu-bar app**
+  - Consider a native replacement for the SwiftBar wrapper only if richer controls or settings become necessary.
 
 - **Low-latency meeting assistant with delayed enrichment loop** ([issue draft](docs/issues/17-low-latency-meeting-assistant-with-delayed-enrichment-loop.md))
   - Use a real-time transcription loop as the primary live path from audio to transcript.

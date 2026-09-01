@@ -9,7 +9,7 @@ It covers:
 - Python virtual environment and Parakeet MLX backend
 - Optional Ollama for title generation
 - `config.yaml` personalisation
-- Data directories, autostart, and optional PATH setup
+- Data directories, autostart, optional SwiftBar menu-bar wrapper, and optional PATH setup
 
 For removal, see **[UNINSTALL.md](../UNINSTALL.md)**.
 
@@ -25,6 +25,7 @@ python3.11 -m venv .venv && source .venv/bin/activate && pip install parakeet-ml
 # edit config.yaml — replace <your-username> in all paths
 npm run build
 ./menu
+# optional: install SwiftBar, then run npm run gui:install
 ```
 
 Full details and troubleshooting: [INSTALL.md](../INSTALL.md)

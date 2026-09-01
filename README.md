@@ -142,7 +142,7 @@ Install [SwiftBar](https://swiftbar.app/) in `/Applications`, then run:
 npm run gui:install
 ```
 
-The menu-bar item refreshes every five seconds. It calls the compiled `status:json` command and uses the existing watcher lifecycle commands; it never runs a build or modifies the transcription queue. Use `npm run gui:uninstall` to remove only the AutoTranscribe2 SwiftBar plugin. If an action fails, inspect `~/Library/Logs/AutoTranscribe2/menu-bar-actions.log` and the existing diagnostic trace.
+The menu-bar item refreshes every five seconds. It calls the compiled `status:json` command and uses the existing watcher lifecycle commands; it never runs a build or modifies the transcription queue. Use `npm run gui:uninstall` to remove only the AutoTranscribe2 SwiftBar plugin. If you chose a non-default SwiftBar plugin folder, set `SWIFTBAR_PLUGIN_DIR` to that folder when installing or uninstalling. If an action fails, inspect `~/Library/Logs/AutoTranscribe2/menu-bar-actions.log` and the existing diagnostic trace.
 
 Autostart, the menu, and `start:all` all go through the same runtime ownership guard. If one managed stack is already running for this repo/runtime root, another start attempt is refused instead of creating duplicate watcher processes.
 
