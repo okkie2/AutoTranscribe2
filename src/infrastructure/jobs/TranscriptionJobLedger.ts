@@ -6,7 +6,7 @@ import { TranscriptionJobQueue } from "../../domain/TranscriptionJobQueue.js";
 
 const JOB_LEDGER_FILENAME = "transcription-jobs.json";
 
-interface PersistedTranscriptionJobRecord {
+export interface PersistedTranscriptionJobRecord {
   id: string;
   audioFilePath: string;
   state: TranscriptionJobState;
