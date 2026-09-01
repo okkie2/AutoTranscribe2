@@ -71,6 +71,7 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 - **Single-instance runtime guard:** menu control, `npm run start:all`, and launchd autostart all respect the same `ManagedWatcherStack` lock, so duplicate watcher stacks are refused instead of processing the same file multiple times.
 - **Diagnostic tracing:** AutoTranscribe2 writes a lightweight JSONL `Diagnostic Trace` for CLI control flow, state observations, guard decisions, and transcript processing to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl`.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with runtime activity, freshness, queue length, current job, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
+- **Menu-bar wrapper:** with SwiftBar installed, `npm run gui:install` adds a five-second macOS menu-bar view over the existing CLI. It shows lifecycle and queue state, the latest transcript, and existing start/stop/restart actions without owning runtime state.
 - **Parakeet MLX or MLX Whisper** on Apple Silicon; switch backend from the menu or via `config.yaml`; optional Ollama for titles
 - **Prettified output:** paragraphs, timestamps, labels; original transcript at bottom
 - **JPR ingestion** via lightweight polling of the iCloud folder, plus **unified start/stop** (`npm run start:all` / `stop:all`)
@@ -132,6 +133,16 @@ npm run start:all
 From then on, the app starts automatically when you log in. To stop it: `npm run stop:all`. To disable autostart, unload the launch agent (see [docs/usage.md](docs/usage.md)).
 
 - **Status monitor:** In another terminal, run `npm run status` for the live-updating dashboard. Real-time monitoring belongs there; the menu stays static by design.
+
+### Optional menu-bar wrapper
+
+Install [SwiftBar](https://swiftbar.app/) in `/Applications`, then run:
+
+```bash
+npm run gui:install
+```
+
+The menu-bar item refreshes every five seconds. It calls the compiled `status:json` command and uses the existing watcher lifecycle commands; it never runs a build or modifies the transcription queue. Use `npm run gui:uninstall` to remove only the AutoTranscribe2 SwiftBar plugin. If an action fails, inspect `~/Library/Logs/AutoTranscribe2/menu-bar-actions.log` and the existing diagnostic trace.
 
 Autostart, the menu, and `start:all` all go through the same runtime ownership guard. If one managed stack is already running for this repo/runtime root, another start attempt is refused instead of creating duplicate watcher processes.
 
