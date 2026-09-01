@@ -50,6 +50,10 @@ function menuBarLabel(snapshot: JsonStatusSnapshot): string {
     return "AT error | color=red";
   }
 
+  if (snapshot.service.state === "stopped") {
+    return "AT idle | color=gray";
+  }
+
   if (
     snapshot.service.state === "starting" ||
     snapshot.service.state === "stopping" ||

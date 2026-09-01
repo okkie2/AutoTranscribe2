@@ -28,3 +28,11 @@ test("SwiftBar menu reports missing or stale status without claiming the service
     assert.doesNotMatch(output, /Open transcript folder/);
     assert.match(renderSwiftBarUnavailable("bad|output\n"), /Status unavailable: bad output /);
 });
+test("SwiftBar menu reports an explicitly stopped service as idle even if its final activity was draining", () => {
+    const output = renderSwiftBarMenu({
+        ...snapshot,
+        service: { state: "stopped", detail: "Managed watcher stack stopped." },
+        activity: "draining"
+    }, "/plugins/autotranscribe.5s.sh");
+    assert.match(output, /^AT idle \| color=gray/m);
+});

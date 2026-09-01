@@ -41,6 +41,9 @@ function menuBarLabel(snapshot) {
     if (snapshot.service.state === "error" || snapshot.activity === "failed") {
         return "AT error | color=red";
     }
+    if (snapshot.service.state === "stopped") {
+        return "AT idle | color=gray";
+    }
     if (snapshot.service.state === "starting" ||
         snapshot.service.state === "stopping" ||
         (snapshot.activity !== null && ACTIVE_STATES.has(snapshot.activity))) {
