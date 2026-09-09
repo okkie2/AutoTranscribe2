@@ -71,12 +71,23 @@ function buildPrompt(transcriptExcerpt, languageHint, maxLength) {
         '"""'
     ].join("\n");
 }
+/**
+ * Characters of transcript handed to the title model.
+ *
+ * A 2000-character window was too small: on a recording that opened with a
+ * garbled round of introductions the model could not tell what language it was
+ * reading and titled a wholly Dutch transcript in English, 0 of 3 runs correct.
+ * At 6000 characters the same transcript came back Dutch 3 of 3, and across six
+ * real Dutch transcripts the wider window was correct 6 of 6 against 5 of 6,
+ * with no case getting worse and several titles becoming more specific.
+ */
+const EXCERPT_CHARS = 6000;
 function pickExcerpt(fullText) {
     // Heuristic: skip some initial noise and keep a bounded excerpt.
     const trimmed = fullText.replace(/^\s+/, "");
     const start = Math.min(600, trimmed.length);
-    const window = trimmed.slice(start, start + 2000);
-    return window || trimmed.slice(0, 2000);
+    const window = trimmed.slice(start, start + EXCERPT_CHARS);
+    return window || trimmed.slice(0, EXCERPT_CHARS);
 }
 async function readResponseTextSafely(res) {
     try {
