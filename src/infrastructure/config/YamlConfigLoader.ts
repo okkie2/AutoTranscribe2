@@ -143,6 +143,7 @@ function toRetentionConfig(raw: any, ingest: IngestConfig): RetentionConfig {
   return {
     enabled: Boolean(raw?.enabled ?? true),
     keepRecentRecordings: Math.max(0, Number(raw?.keep_recent_recordings ?? 3)),
+    keepArchivedRecordings: Math.max(0, Number(raw?.keep_archived_recordings ?? 0)),
     archiveDirectory: String(raw?.archive_directory ?? defaultArchiveDirectory)
   };
 }

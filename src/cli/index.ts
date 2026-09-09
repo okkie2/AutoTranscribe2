@@ -106,6 +106,7 @@ async function main() {
         recordingsRoot,
         archiveDirectory: config.retention.archiveDirectory,
         keepRecentRecordings: config.retention.keepRecentRecordings,
+        keepArchivedRecordings: config.retention.keepArchivedRecordings,
         includeExtensions: config.watch.includeExtensions,
         isArchivable: (audioFilePath) => completedAudioPaths.has(path.resolve(audioFilePath)),
         logger

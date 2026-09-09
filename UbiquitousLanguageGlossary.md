@@ -57,7 +57,7 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **ArchivedAudioFile**: An `AudioFile` that has a `completed` `TranscriptionJob` and has been moved out of the watched recordings folder into the archive directory. Archived recordings are no longer scanned by the `Watcher`. Operator-facing label: **archived recording**.
 
-- **RecordingRetention**: The policy that decides which `AudioFile`s stay in the watched recordings folder. It always keeps the newest N recordings in place regardless of job state, so a recent recording can be re-listened to or re-transcribed after a failure, and archives only older recordings whose `TranscriptionJob` reached `completed`. `pending`, `in_progress`, and `failed` recordings are never archived.
+- **RecordingRetention**: The policy that decides which `AudioFile`s stay in the watched recordings folder. It always keeps the newest N recordings in place regardless of job state, so a recent recording can be re-listened to or re-transcribed after a failure, and archives only older recordings whose `TranscriptionJob` reached `completed`. `pending`, `in_progress`, and `failed` recordings are never archived. The archive itself is bounded: only the newest N `ArchivedAudioFile`s are kept, and older ones are deleted permanently. A `Transcript` is never deleted by retention, so the readable output outlives the audio.
 
 - **Poller**: The concrete mechanism used by the `Watcher` to detect file system changes via periodic scans (e.g. every N seconds). In later versions it may be replaced or augmented by real filesystem events without changing domain logic.
 

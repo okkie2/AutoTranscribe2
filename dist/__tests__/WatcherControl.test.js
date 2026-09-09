@@ -43,6 +43,7 @@ function createTestConfig(rootDir) {
         retention: {
             enabled: false,
             keepRecentRecordings: 3,
+            keepArchivedRecordings: 0,
             archiveDirectory: path.join(rootDir, "archive")
         },
         autostart: {

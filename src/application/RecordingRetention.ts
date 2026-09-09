@@ -10,6 +10,11 @@ export interface RecordingRetentionOptions {
   archiveDirectory: string;
   /** Number of newest recordings always left in place, regardless of job state. */
   keepRecentRecordings: number;
+  /**
+   * Number of newest archived recordings to keep. Older ones are deleted permanently.
+   * 0 keeps every archived recording.
+   */
+  keepArchivedRecordings: number;
   /** Audio extensions considered, e.g. [".m4a", ".mp3"]. */
   includeExtensions: string[];
   /**
@@ -27,9 +32,11 @@ export interface RecordingRetentionResult {
   retained: number;
   /** Recordings left in place because they are not archivable (pending or failed). */
   skipped: number;
+  /** Archived recordings deleted permanently because the archive was over its limit. */
+  pruned: string[];
 }
 
-const EMPTY_RESULT: RecordingRetentionResult = { archived: [], retained: 0, skipped: 0 };
+const EMPTY_RESULT: RecordingRetentionResult = { archived: [], retained: 0, skipped: 0, pruned: [] };
 
 function isNestedWithin(candidate: string, parent: string): boolean {
   const relative = path.relative(parent, candidate);
@@ -79,6 +86,57 @@ function moveFile(sourcePath: string, destinationPath: string): void {
     fs.copyFileSync(sourcePath, destinationPath);
     fs.unlinkSync(sourcePath);
   }
+}
+
+/**
+ * Delete the oldest archived recordings once the archive holds more than the configured
+ * number. Only recordings that already produced a Transcript are ever archived, so the
+ * durable output of this audio is kept even after the audio itself is removed.
+ */
+function pruneArchive(
+  archiveDirectory: string,
+  keepArchivedRecordings: number,
+  includeExtensions: string[],
+  logger: Logger
+): string[] {
+  if (keepArchivedRecordings <= 0) {
+    return [];
+  }
+
+  let archived: string[];
+  try {
+    archived = listRecordings(archiveDirectory, includeExtensions);
+  } catch {
+    // No archive directory yet; nothing to prune.
+    return [];
+  }
+
+  const ordered = archived
+    .map((filePath) => ({ filePath, mtimeMs: modifiedAt(filePath) }))
+    .sort((left, right) => right.mtimeMs - left.mtimeMs)
+    .map((entry) => entry.filePath);
+
+  const pruned: string[] = [];
+  for (const filePath of ordered.slice(keepArchivedRecordings)) {
+    try {
+      fs.unlinkSync(filePath);
+      pruned.push(filePath);
+      logger.info("Deleted archived recording over the archive limit", {
+        archivedRecording: filePath,
+        keepArchivedRecordings
+      });
+      traceEvent({
+        event: "archived_recording_pruned",
+        source: "RecordingRetention",
+        metadata: { archivedRecording: filePath, keepArchivedRecordings }
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn("Could not delete archived recording", { archivedRecording: filePath, error: message });
+    }
+  }
+
+  return pruned;
 }
 
 /**
@@ -172,5 +230,12 @@ export function archiveProcessedRecordings(
     }
   }
 
-  return { archived, retained: retainedRecordings.length, skipped };
+  const pruned = pruneArchive(
+    archiveDirectory,
+    options.keepArchivedRecordings,
+    options.includeExtensions,
+    options.logger
+  );
+
+  return { archived, retained: retainedRecordings.length, skipped, pruned };
 }

@@ -41,6 +41,7 @@ function sweep(fixture: Fixture, overrides: Partial<Parameters<typeof archivePro
     recordingsRoot: fixture.recordingsDir,
     archiveDirectory: fixture.archiveDir,
     keepRecentRecordings: 3,
+    keepArchivedRecordings: 0,
     includeExtensions: [".m4a"],
     isArchivable: () => true,
     logger,
@@ -136,4 +137,60 @@ test("archiveProcessedRecordings tolerates a missing recordings folder", () => {
   const result = sweep(fixture);
 
   assert.deepEqual(result.archived, []);
+});
+
+test("archiveProcessedRecordings prunes the oldest archived recordings over the limit", () => {
+  const fixture = createFixture();
+  fs.mkdirSync(fixture.archiveDir, { recursive: true });
+  // Six already-archived recordings, oldest last.
+  for (let i = 1; i <= 6; i += 1) {
+    const filePath = path.join(fixture.archiveDir, `archived-${i}.m4a`);
+    fs.writeFileSync(filePath, `archived ${i}`, "utf8");
+    const when = new Date(Date.now() - i * 60_000);
+    fs.utimesSync(filePath, when, when);
+  }
+  writeRecording(fixture.recordingsDir, "newest.m4a", 1);
+
+  const result = sweep(fixture, { keepArchivedRecordings: 5 });
+
+  assert.equal(result.pruned.length, 1);
+  assert.equal(path.basename(result.pruned[0]), "archived-6.m4a");
+  assert.equal(fs.readdirSync(fixture.archiveDir).length, 5);
+  assert.ok(!fs.existsSync(path.join(fixture.archiveDir, "archived-6.m4a")));
+  assert.ok(fs.existsSync(path.join(fixture.archiveDir, "archived-1.m4a")));
+});
+
+test("archiveProcessedRecordings keeps every archived recording when the limit is 0", () => {
+  const fixture = createFixture();
+  fs.mkdirSync(fixture.archiveDir, { recursive: true });
+  for (let i = 1; i <= 7; i += 1) {
+    fs.writeFileSync(path.join(fixture.archiveDir, `archived-${i}.m4a`), `archived ${i}`, "utf8");
+  }
+  writeRecording(fixture.recordingsDir, "newest.m4a", 1);
+
+  const result = sweep(fixture, { keepArchivedRecordings: 0 });
+
+  assert.deepEqual(result.pruned, []);
+  assert.equal(fs.readdirSync(fixture.archiveDir).length, 7);
+});
+
+test("archiveProcessedRecordings counts a freshly archived recording against the archive limit", () => {
+  const fixture = createFixture();
+  fs.mkdirSync(fixture.archiveDir, { recursive: true });
+  for (let i = 1; i <= 5; i += 1) {
+    const filePath = path.join(fixture.archiveDir, `archived-${i}.m4a`);
+    fs.writeFileSync(filePath, `archived ${i}`, "utf8");
+    const when = new Date(Date.now() - (i + 10) * 60_000);
+    fs.utimesSync(filePath, when, when);
+  }
+  writeRecording(fixture.recordingsDir, "newest.m4a", 1);
+  writeRecording(fixture.recordingsDir, "older.m4a", 2);
+
+  const result = sweep(fixture, { keepRecentRecordings: 1, keepArchivedRecordings: 5 });
+
+  // The newly archived recording is the newest, so the oldest existing one goes.
+  assert.equal(result.archived.length, 1);
+  assert.equal(result.pruned.length, 1);
+  assert.equal(path.basename(result.pruned[0]), "archived-5.m4a");
+  assert.equal(fs.readdirSync(fixture.archiveDir).length, 5);
 });

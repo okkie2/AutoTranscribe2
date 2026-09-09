@@ -69,11 +69,13 @@ Controls which recordings stay in the watched folder after transcription:
 retention:
   enabled: true
   keep_recent_recordings: 3
+  keep_archived_recordings: 5
   archive_directory: "/Users/you/Documents/AutoTranscribe2/archive"
 ```
 
 - **`retention.enabled`** – set to `false` to leave every recording in place.
 - **`retention.keep_recent_recordings`** – how many of the newest recordings always stay in the recordings folder, regardless of transcription state, so a recent one can be re-listened to or re-transcribed. Default `3`.
+- **`retention.keep_archived_recordings`** – how many of the newest archived recordings to keep. Older ones are **deleted permanently**. Their transcripts are never deleted, so the readable output of a pruned recording survives. `0` keeps every archived recording. Default `0`.
 - **`retention.archive_directory`** – where archived recordings are moved. Must sit **outside** any watched directory, otherwise the watcher would rediscover and re-transcribe them; the sweep refuses to run and logs an error if it is nested. Defaults to a sibling `archive` folder next to `ingest.recordings_root`.
 
 Only recordings whose `TranscriptionJob` reached `completed` are archived. Recordings that are pending, in progress, or failed are always left in place, so a failed transcription never moves the audio out from under you. The sweep runs at watcher startup and after each successful transcription.

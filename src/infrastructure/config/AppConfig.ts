@@ -49,6 +49,7 @@ export interface IngestConfig {
 export interface RetentionConfig {
   enabled: boolean;
   keepRecentRecordings: number;
+  keepArchivedRecordings: number;
   archiveDirectory: string;
 }
 

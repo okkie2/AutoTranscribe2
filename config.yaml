@@ -43,6 +43,9 @@ retention:
   # Newest N recordings always stay in the recordings folder, so a recent one can be
   # re-listened to or re-transcribed if a transcription fails.
   keep_recent_recordings: 3
+  # Newest N archived recordings to keep; older ones are deleted permanently.
+  # Their transcripts are never deleted. 0 keeps every archived recording.
+  keep_archived_recordings: 5
   archive_directory: "/Users/joostokkinga/Documents/AutoTranscribe2/archive"
 
 autostart:

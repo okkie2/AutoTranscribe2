@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { traceEvent } from "../infrastructure/tracing/TraceLogger.js";
-const EMPTY_RESULT = { archived: [], retained: 0, skipped: 0 };
+const EMPTY_RESULT = { archived: [], retained: 0, skipped: 0, pruned: [] };
 function isNestedWithin(candidate, parent) {
     const relative = path.relative(parent, candidate);
     return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
@@ -46,6 +46,49 @@ function moveFile(sourcePath, destinationPath) {
         fs.copyFileSync(sourcePath, destinationPath);
         fs.unlinkSync(sourcePath);
     }
+}
+/**
+ * Delete the oldest archived recordings once the archive holds more than the configured
+ * number. Only recordings that already produced a Transcript are ever archived, so the
+ * durable output of this audio is kept even after the audio itself is removed.
+ */
+function pruneArchive(archiveDirectory, keepArchivedRecordings, includeExtensions, logger) {
+    if (keepArchivedRecordings <= 0) {
+        return [];
+    }
+    let archived;
+    try {
+        archived = listRecordings(archiveDirectory, includeExtensions);
+    }
+    catch {
+        // No archive directory yet; nothing to prune.
+        return [];
+    }
+    const ordered = archived
+        .map((filePath) => ({ filePath, mtimeMs: modifiedAt(filePath) }))
+        .sort((left, right) => right.mtimeMs - left.mtimeMs)
+        .map((entry) => entry.filePath);
+    const pruned = [];
+    for (const filePath of ordered.slice(keepArchivedRecordings)) {
+        try {
+            fs.unlinkSync(filePath);
+            pruned.push(filePath);
+            logger.info("Deleted archived recording over the archive limit", {
+                archivedRecording: filePath,
+                keepArchivedRecordings
+            });
+            traceEvent({
+                event: "archived_recording_pruned",
+                source: "RecordingRetention",
+                metadata: { archivedRecording: filePath, keepArchivedRecordings }
+            });
+        }
+        catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            logger.warn("Could not delete archived recording", { archivedRecording: filePath, error: message });
+        }
+    }
+    return pruned;
 }
 /**
  * Move already-transcribed recordings out of the watched recordings folder into the
@@ -129,5 +172,6 @@ export function archiveProcessedRecordings(options) {
             });
         }
     }
-    return { archived, retained: retainedRecordings.length, skipped };
+    const pruned = pruneArchive(archiveDirectory, options.keepArchivedRecordings, options.includeExtensions, options.logger);
+    return { archived, retained: retainedRecordings.length, skipped, pruned };
 }
