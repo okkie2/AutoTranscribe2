@@ -7,6 +7,7 @@ import type {
   LoggingConfig,
   TitleConfig,
   IngestConfig,
+  RetentionConfig,
   AutostartConfig
 } from "./AppConfig.js";
 import type { WatchConfiguration } from "../../domain/WatchConfiguration.js";
@@ -135,6 +136,17 @@ function toIngestConfig(raw: any): IngestConfig {
   };
 }
 
+function toRetentionConfig(raw: any, ingest: IngestConfig): RetentionConfig {
+  const recordingsRoot = path.resolve(ingest.recordingsRoot);
+  const defaultArchiveDirectory = path.join(path.dirname(recordingsRoot), "archive");
+
+  return {
+    enabled: Boolean(raw?.enabled ?? true),
+    keepRecentRecordings: Math.max(0, Number(raw?.keep_recent_recordings ?? 3)),
+    archiveDirectory: String(raw?.archive_directory ?? defaultArchiveDirectory)
+  };
+}
+
 function toAutostartConfig(raw: any): AutostartConfig {
   const enabled = Boolean(raw?.enabled ?? false);
   const label = String(raw?.label ?? "com.autotranscribe2.startall");
@@ -156,8 +168,9 @@ export function loadConfig(configPath: string = "config.yaml"): AppConfig {
   const logging = toLoggingConfig(raw.logging);
   const title = toTitleConfig(raw.title);
   const ingest = toIngestConfig(raw.ingest);
+  const retention = toRetentionConfig(raw.retention, ingest);
   const autostart = toAutostartConfig(raw.autostart);
   const runtimeStatusPath = path.join(path.dirname(resolvedPath), "runtime", "status.json");
 
-  return { watch, backend, logging, title, ingest, autostart, runtimeStatusPath };
+  return { watch, backend, logging, title, ingest, retention, autostart, runtimeStatusPath };
 }

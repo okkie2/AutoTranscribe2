@@ -46,6 +46,12 @@ export interface IngestConfig {
   recordingsRoot: string;
 }
 
+export interface RetentionConfig {
+  enabled: boolean;
+  keepRecentRecordings: number;
+  archiveDirectory: string;
+}
+
 export interface AutostartConfig {
   enabled: boolean;
   label: string;
@@ -57,6 +63,7 @@ export interface AppConfig {
   logging: LoggingConfig;
   title: TitleConfig;
   ingest: IngestConfig;
+  retention: RetentionConfig;
   autostart: AutostartConfig;
   /** Resolved path to runtime/status.json (same directory as config file). */
   runtimeStatusPath: string;

@@ -19,6 +19,8 @@ export interface JobWorkerOptions {
   heartbeatIntervalMs?: number;
   idlePollIntervalMs?: number;
   jobLedger?: TranscriptionJobLedger;
+  /** Invoked after each successful transcription, e.g. to archive processed recordings. */
+  onTranscriptionCompleted?: () => void;
 }
 
 /**
@@ -137,6 +139,16 @@ export class JobWorker {
           currentJobId: job.id,
           currentPhaseDetail: path.basename(transcriptPath)
         });
+
+        try {
+          this.options.onTranscriptionCompleted?.();
+        } catch (err) {
+          // Post-completion housekeeping must never fail an already-written transcript.
+          this.logger.warn("Post-transcription housekeeping failed", {
+            jobId: job.id,
+            error: err instanceof Error ? err.message : String(err)
+          });
+        }
       } finally {
         if (heartbeatIntervalId) {
           clearInterval(heartbeatIntervalId);

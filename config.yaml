@@ -38,6 +38,13 @@ ingest:
   jpr_source_root: "/Users/joostokkinga/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents"
   recordings_root: "/Users/joostokkinga/Documents/AutoTranscribe2/recordings"
 
+retention:
+  enabled: true
+  # Newest N recordings always stay in the recordings folder, so a recent one can be
+  # re-listened to or re-transcribed if a transcription fails.
+  keep_recent_recordings: 3
+  archive_directory: "/Users/joostokkinga/Documents/AutoTranscribe2/archive"
+
 autostart:
   enabled: true
   label: "com.autotranscribe2.startall"

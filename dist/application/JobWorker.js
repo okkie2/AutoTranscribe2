@@ -105,6 +105,16 @@ export class JobWorker {
                     currentJobId: job.id,
                     currentPhaseDetail: path.basename(transcriptPath)
                 });
+                try {
+                    this.options.onTranscriptionCompleted?.();
+                }
+                catch (err) {
+                    // Post-completion housekeeping must never fail an already-written transcript.
+                    this.logger.warn("Post-transcription housekeeping failed", {
+                        jobId: job.id,
+                        error: err instanceof Error ? err.message : String(err)
+                    });
+                }
             }
             finally {
                 if (heartbeatIntervalId) {

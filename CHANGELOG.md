@@ -4,6 +4,7 @@
 
 - **fix: stop the Diagnostic Trace drowning in repeat poll events** — `FileSystemPoller` no longer traces `transcript_duplicate_ignored` for files it has already seen in this process. That branch fired for every known recording on every poll and accounted for 99.8% of a 126 MB trace file. The one-shot duplicate reasons (`already_claimed_in_durable_job_state`, `transcript_already_exists`) are still traced.
 - **feat: bound the Diagnostic Trace size** — `TraceLogger` now rotates `cli-trace.jsonl` once it passes 5 MB and keeps exactly one previous generation, so trace usage stays bounded instead of growing without limit.
+- **feat: archive transcribed recordings** — New `RecordingRetention` policy moves recordings with a `completed` `TranscriptionJob` out of the watched recordings folder into a configurable archive directory. The newest three recordings always stay in place so a recent one can be re-listened to or re-transcribed, and `pending`, `in_progress`, and `failed` recordings are never archived. Configured under `retention:` in `config.yaml`; runs at watcher startup and after each successful transcription.
 
 ## 2026-09-01
 

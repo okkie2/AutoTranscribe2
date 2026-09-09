@@ -14,6 +14,7 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
 - **Unified start/stop** – `npm run start:all` (build, Ollama check, ingest:jpr + watcher); `npm run stop:all` (SIGINT via PID file).
 - **Config-driven autostart** – `autostart.enabled` / `autostart.label` in `config.yaml`; `npm run autostart:install` writes launchd plist for login.
 - **SwiftBar menu-bar wrapper** – `npm run gui:install` adds a five-second read-only status view with existing start/stop/restart controls. `npm run gui:uninstall` removes only the plugin.
+- **Recording retention** – Transcribed recordings are archived out of the watched folder into `retention.archive_directory`; the newest `retention.keep_recent_recordings` (default 3) always stay put, and pending/failed recordings are never moved. Sweep runs at watcher startup and after each successful transcription.
 
 ---
 

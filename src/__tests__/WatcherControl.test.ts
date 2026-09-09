@@ -55,6 +55,11 @@ function createTestConfig(rootDir: string): AppConfig {
       jprSourceRoot: path.join(rootDir, "jpr"),
       recordingsRoot: path.join(rootDir, "recordings")
     },
+    retention: {
+      enabled: false,
+      keepRecentRecordings: 3,
+      archiveDirectory: path.join(rootDir, "archive")
+    },
     autostart: {
       enabled: false,
       label: "com.example.autotranscribe2"

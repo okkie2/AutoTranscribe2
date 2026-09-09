@@ -9,6 +9,7 @@ All configuration is in `config.yaml` in the project root. The application creat
 - **`logging`** – `level`, `log_file`, `console`
 - **`title`** – `enabled`, `provider` (`ollama` | `heuristic` | `none`), `ollama` endpoint/model
 - **`ingest`** – `jpr_source_root`, `recordings_root`
+- **`retention`** – `enabled`, `keep_recent_recordings`, `archive_directory`
 - **`autostart`** – `enabled`, `label` (for macOS launchd)
 
 ## Data directories
@@ -59,6 +60,23 @@ JPR (Just Press Record) ingestion:
 
 - **`ingest.jpr_source_root`** – iCloud path to the JPR Documents folder (e.g. `~/Library/Mobile Documents/iCloud~com~openplanetsoftware~just-press-record/Documents`)
 - **`ingest.recordings_root`** – directory where copied recordings are written (typically the same as `watch.directories`)
+
+## Recording retention config
+
+Controls which recordings stay in the watched folder after transcription:
+
+```yaml
+retention:
+  enabled: true
+  keep_recent_recordings: 3
+  archive_directory: "/Users/you/Documents/AutoTranscribe2/archive"
+```
+
+- **`retention.enabled`** – set to `false` to leave every recording in place.
+- **`retention.keep_recent_recordings`** – how many of the newest recordings always stay in the recordings folder, regardless of transcription state, so a recent one can be re-listened to or re-transcribed. Default `3`.
+- **`retention.archive_directory`** – where archived recordings are moved. Must sit **outside** any watched directory, otherwise the watcher would rediscover and re-transcribe them; the sweep refuses to run and logs an error if it is nested. Defaults to a sibling `archive` folder next to `ingest.recordings_root`.
+
+Only recordings whose `TranscriptionJob` reached `completed` are archived. Recordings that are pending, in progress, or failed are always left in place, so a failed transcription never moves the audio out from under you. The sweep runs at watcher startup and after each successful transcription.
 
 ## Autostart-related config
 

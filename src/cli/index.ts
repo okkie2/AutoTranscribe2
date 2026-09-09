@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 
+import path from "node:path";
 import { loadConfig } from "../infrastructure/config/YamlConfigLoader.js";
 import { ConsoleAndFileLogger } from "../infrastructure/logging/ConsoleAndFileLogger.js";
 import { createBackend } from "../infrastructure/backend/BackendFactory.js";
 import { TranscriptionService } from "../application/TranscriptionService.js";
 import { TranscriptionJobQueue } from "../domain/TranscriptionJobQueue.js";
+import { TranscriptionJobState } from "../domain/TranscriptionJob.js";
 import { FileSystemPoller } from "../infrastructure/watcher/FileSystemPoller.js";
 import { JobWorker } from "../application/JobWorker.js";
+import { archiveProcessedRecordings } from "../application/RecordingRetention.js";
 import { createTitleSuggester } from "../infrastructure/title/TitleSuggesterFactory.js";
 import {
   createStatusUpdater,
@@ -85,8 +88,34 @@ async function main() {
     statusUpdater,
     jobLedger
   );
+  // Only recordings with a completed TranscriptionJob may leave the recordings folder.
+  const runRetentionSweep = (): void => {
+    if (!config.retention.enabled) {
+      return;
+    }
+
+    const completedAudioPaths = new Set(
+      jobLedger
+        .listRecords()
+        .filter((record) => record.state === TranscriptionJobState.Completed)
+        .map((record) => path.resolve(record.audioFilePath))
+    );
+
+    for (const recordingsRoot of config.watch.directories) {
+      archiveProcessedRecordings({
+        recordingsRoot,
+        archiveDirectory: config.retention.archiveDirectory,
+        keepRecentRecordings: config.retention.keepRecentRecordings,
+        includeExtensions: config.watch.includeExtensions,
+        isArchivable: (audioFilePath) => completedAudioPaths.has(path.resolve(audioFilePath)),
+        logger
+      });
+    }
+  };
+
   const worker = new JobWorker(queue, transcriptionService, logger, statusUpdater, {
-    jobLedger
+    jobLedger,
+    onTranscriptionCompleted: runRetentionSweep
   });
 
   if (command === "watch") {
@@ -120,6 +149,10 @@ async function main() {
             ? "Ollama title provider has not been checked yet."
             : "Heuristic title provider is active."
     });
+    // Sweep once at startup so recordings transcribed before this feature existed are
+    // archived without waiting for the next completed job.
+    runRetentionSweep();
+
     const recoveredJobCount = rehydrateRecoverableJobs(queue, jobLedger, logger);
     if (recoveredJobCount > 0) {
       statusUpdater({

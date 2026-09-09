@@ -15,6 +15,7 @@ AutoTranscribe2 is a local-first speech-to-text tool for Apple Silicon Macs. It 
 5. You could also manually drop a file in recordings folder.
 6. Anything in recordings folder gets picked up and LOCALLY transcribed by Parakeet MLX (or Whisper).
 7. A titled Markdown transcript appears in your transcripts folder.
+8. Once transcribed, the recording is moved to the archive folder — the newest three always stay in the recordings folder so you can re-listen or re-run them.
 
 ---
 
@@ -69,7 +70,8 @@ Transcripts are Markdown and work with Obsidian, Logseq, Notion, and Git.
 - **Automatic transcription:** run `autotranscribe watch` (or `npm run start:all`); new audio in watched folders is transcribed automatically.
 - **Simple operational menu:** `autotranscribe menu` opens the lightweight `WatcherControl` entry point with a compact `StatusSnapshot`, manual refresh, start/stop/restart, recent Transcription Jobs, and opening the Latest Transcript.
 - **Single-instance runtime guard:** menu control, `npm run start:all`, and launchd autostart all respect the same `ManagedWatcherStack` lock, so duplicate watcher stacks are refused instead of processing the same file multiple times.
-- **Diagnostic tracing:** AutoTranscribe2 writes a lightweight JSONL `Diagnostic Trace` for CLI control flow, state observations, guard decisions, and transcript processing to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl`.
+- **Diagnostic tracing:** AutoTranscribe2 writes a lightweight JSONL `Diagnostic Trace` for CLI control flow, state observations, guard decisions, and transcript processing to `~/Library/Logs/AutoTranscribe2/cli-trace.jsonl`. The file rotates at 5 MB and one previous generation is kept, so it stays bounded.
+- **Recording retention:** transcribed recordings are archived out of the watched folder into `retention.archive_directory`, keeping the newest `retention.keep_recent_recordings` (default 3) in place. Recordings whose transcription failed or has not run are never archived, so a failure always leaves the audio where you can retry it.
 - **Live status dashboard:** `npm run status` shows a terminal dashboard that refreshes every 500 ms with runtime activity, freshness, queue length, current job, and last error; data comes from `runtime/status.json`. Press Ctrl+C to exit.
 - **Menu-bar wrapper:** with SwiftBar installed, `npm run gui:install` adds a five-second macOS menu-bar view over the existing CLI. It shows lifecycle and queue state, the latest transcript, and existing start/stop/restart actions without owning runtime state.
 - **Parakeet MLX or MLX Whisper** on Apple Silicon; switch backend from the menu or via `config.yaml`; optional Ollama for titles
