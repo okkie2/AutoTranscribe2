@@ -55,6 +55,56 @@ test("OllamaTitleSuggester returns a validated title from Ollama JSON", async ()
   }
 });
 
+test("OllamaTitleSuggester recovers a title a reasoning model left in the thinking field", async () => {
+  // Reasoning models under format:"json" can emit the answer as `thinking` with an
+  // empty `response`, which previously produced an Untitled transcript.
+  const restoreFetch = installFetchStub(async () =>
+    new Response(
+      JSON.stringify({
+        response: "",
+        thinking: '{"title":"Vrouwengroep bijeen"}'
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )
+  );
+
+  try {
+    const suggester = new OllamaTitleSuggester(baseConfig);
+    const title = await suggester.suggestTitle({
+      transcriptText: "We bespreken de bijeenkomst van de vrouwengroep.",
+      fallbackTitle: "2026-09-08_19-54-54"
+    });
+
+    assert.equal(title, "Vrouwengroep bijeen");
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("OllamaTitleSuggester disables reasoning so the answer lands in the response field", async () => {
+  let sentBody: any = null;
+  const restoreFetch = installFetchStub(async (_input, init) => {
+    sentBody = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ response: '{"title":"Kort overleg"}' }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  });
+
+  try {
+    const suggester = new OllamaTitleSuggester(baseConfig);
+    await suggester.suggestTitle({
+      transcriptText: "Een kort overleg over planning.",
+      fallbackTitle: "fallback"
+    });
+
+    assert.equal(sentBody.think, false);
+    assert.ok(sentBody.options.num_predict >= 256, "must leave room for a thinking model");
+  } finally {
+    restoreFetch();
+  }
+});
+
 test("OllamaTitleSuggester falls back to a smaller Ollama model when the primary model fails", async () => {
   const requestedModels: Array<string> = [];
   const restoreFetch = installFetchStub(async (_input, init) => {

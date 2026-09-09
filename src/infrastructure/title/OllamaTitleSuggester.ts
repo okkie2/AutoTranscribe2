@@ -146,9 +146,14 @@ async function postToOllama(
           prompt,
           stream: false,
           format: "json",
+          // Reasoning models otherwise spend the whole budget on thinking and return an
+          // empty `response`. Ollama accepts this for non-reasoning models too.
+          think: false,
           options: {
             temperature: config.ollama.temperature,
-            num_predict: 32
+            // A title is ~15 tokens, but a model that ignores `think` needs room to
+            // finish reasoning before it emits the answer.
+            num_predict: 256
           }
         }),
         signal: controller.signal
@@ -172,7 +177,10 @@ async function postToOllama(
       throw new OllamaTitleError(`Ollama returned invalid JSON: ${message}`);
     }
 
-    const responseText = String(data?.response ?? "");
+    // Some reasoning models put the answer in `thinking` and leave `response` empty,
+    // so treat `thinking` as a secondary source rather than losing the title.
+    const rawResponse = String(data?.response ?? "");
+    const responseText = rawResponse.trim() ? rawResponse : String(data?.thinking ?? "");
     if (!responseText.trim()) {
       throw new OllamaTitleError("Ollama returned an empty response body.");
     }

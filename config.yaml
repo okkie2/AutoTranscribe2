@@ -30,7 +30,7 @@ title:
   language_hint: null
   ollama:
     endpoint: "http://127.0.0.1:11434/api/generate"
-    model: "qwen3:14b"
+    model: "qwen3.5:9b"
     temperature: 0.2
     timeout_ms: 120000
 
