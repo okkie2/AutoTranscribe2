@@ -2,6 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { formatTranscriptWithTitle } from "./TranscriptTitleFormatter.js";
 const FALLBACK_LANGUAGES = ["nl", "en"];
+/**
+ * Only retry with explicit language hints when the auto-detected transcript is genuinely
+ * broken. The retry costs two extra full transcription passes, so it must earn them.
+ *
+ * Measured over 54 real fallback events: scores ran -1127.9, -0.4, -0.4, 6.9, 16.3, 22.5
+ * up to a median of 36.4 and a maximum of 47.2, and a retry beat the auto pass only twice.
+ * A floor of 20 keeps the retry for the five genuinely broken transcripts, including the
+ * -1127.9 outlier it rescued, and lets the other 49 finish in a single pass.
+ */
+const LANGUAGE_FALLBACK_SCORE_FLOOR = 20;
 const DUTCH_STOPWORDS = new Set([
     "de", "het", "een", "en", "ik", "je", "jij", "we", "wij", "van", "dat", "die", "in", "is", "op",
     "te", "niet", "met", "voor", "maar", "om", "wat", "er", "als", "dan", "ja", "nog", "ook", "heb",
@@ -142,6 +152,14 @@ export class TranscriptionService {
     async selectTranscriptVariant(audioFile, languageHint) {
         const primary = await this.transcribeVariant(audioFile, languageHint);
         if (languageHint || !shouldRetryWithLanguageFallback(primary.parsed.rawText)) {
+            return primary;
+        }
+        if (primary.score >= LANGUAGE_FALLBACK_SCORE_FLOOR) {
+            this.logger.info("Auto language detection looks usable; skipping the language fallback passes", {
+                audioFile: audioFile.path,
+                initialScore: primary.score,
+                scoreFloor: LANGUAGE_FALLBACK_SCORE_FLOOR
+            });
             return primary;
         }
         this.logger.info("Auto language detection produced a suspicious transcript; retrying with language fallback", {
