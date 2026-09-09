@@ -35,7 +35,7 @@ Prioritised roadmap for AutoTranscribe2. Items are ordered by reliability first,
   - Handle failed jobs cleanly (failed jobs remain in the ledger and must be removed manually to retry).
   - Make watcher behaviour resilient if the backend crashes or a file is incomplete.
   - Revisit whether the discovery ledger should expire or compact old entries over time.
-  - Review `Diagnostic Trace` sessions from real user runs and trim any low-signal events that do not help reconstruct state transitions.
+  - *(Resolved: the per-poll `already_seen_in_this_process` trace event was removed — it was 99.8% of a 126 MB trace — and `TraceLogger` now rotates at 5 MB keeping one previous generation.)*
   - *(Resolved: duplicate suppression via durable job claims; restart-driven re-enqueue no longer an issue.)*
 
 ---

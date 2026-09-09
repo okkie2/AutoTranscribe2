@@ -139,14 +139,9 @@ export class FileSystemPoller {
 
       const resolved = path.resolve(fullPath);
       if (this.seenFiles.has(resolved)) {
-        traceEvent({
-          event: "transcript_duplicate_ignored",
-          source: "FileSystemPoller",
-          metadata: {
-            reason: "already_seen_in_this_process",
-            ...this.getFileMetadata(resolved)
-          }
-        });
+        // Deliberately untraced: this branch is hit for every known file on every poll,
+        // which drowned the Diagnostic Trace in repeat events carrying no new information.
+        // The one-shot duplicate reasons below are still traced.
         continue;
       }
 

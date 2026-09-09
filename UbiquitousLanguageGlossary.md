@@ -53,7 +53,7 @@ This glossary defines the core concepts for the AutoTranscribe bounded context. 
 
 - **CurrentTranscriptionJob**: The currently active file or job reference shown to an operator in status views. In the current CLI this is represented by `currentFile` and, when available, `currentJobId`.
 
-- **Diagnostic Trace**: A structured JSONL event log used to reconstruct runtime behaviour and debug state transitions across CLI control flow, state reconciliation, and transcript processing.
+- **Diagnostic Trace**: A structured JSONL event log used to reconstruct runtime behaviour and debug state transitions across CLI control flow, state reconciliation, and transcript processing. Size-bounded: the active trace rotates once it passes a fixed cap, and exactly one previous generation is retained.
 
 - **Poller**: The concrete mechanism used by the `Watcher` to detect file system changes via periodic scans (e.g. every N seconds). In later versions it may be replaced or augmented by real filesystem events without changing domain logic.
 
