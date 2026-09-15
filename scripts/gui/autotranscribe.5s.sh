@@ -70,7 +70,7 @@ run_action() {
       local transcript
       transcript="$("$NODE_BINARY" "$REPO_ROOT/dist/cli/statusJson.js" | "$NODE_BINARY" -e 'let data=""; process.stdin.on("data", (chunk) => { data += chunk; }); process.stdin.on("end", () => { try { const value = JSON.parse(data).latestTranscript; process.stdout.write(value ?? ""); } catch { process.exit(1); } });')"
       if [[ -n "$transcript" ]]; then
-        open "$(dirname "$transcript")" >>"$ACTION_LOG" 2>&1
+        open "$transcript" >>"$ACTION_LOG" 2>&1
       fi
       ;;
     *)

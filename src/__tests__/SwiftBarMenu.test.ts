@@ -20,11 +20,24 @@ const snapshot: JsonStatusSnapshot = {
 test("SwiftBar menu renders an active snapshot with existing lifecycle actions", () => {
   const output = renderSwiftBarMenu(snapshot, "/plugins/autotranscribe.5s.sh");
 
-  assert.match(output, /^AT working \| color=green/m);
+  assert.match(output, /^\| sfimage=pencil\.and\.ellipsis\.rectangle sfcolor=green/m);
   assert.match(output, /Transcription jobs: 1 pending, 1 running, 2 failed/);
+  assert.match(output, /Latest transcript: latest\.md/);
+  assert.doesNotMatch(output, /Latest transcript: \/transcripts\//);
+  assert.match(output, /Last error: A previous job failed/);
   assert.match(output, /Start \| bash='\/plugins\/autotranscribe\.5s\.sh' param1=action param2=start/);
   assert.match(output, /Restart .*param2=restart/);
-  assert.match(output, /Open transcript folder .*param2=open-transcripts/);
+  assert.match(output, /Open latest transcript .*param2=open-transcripts/);
+});
+
+test("SwiftBar menu truncates long errors", () => {
+  const output = renderSwiftBarMenu(
+    { ...snapshot, lastError: "x".repeat(200) },
+    "/plugins/autotranscribe.5s.sh"
+  );
+
+  assert.match(output, new RegExp(`Last error: x{119}…`));
+  assert.doesNotMatch(output, /x{120}/);
 });
 
 test("SwiftBar menu reports missing or stale status without claiming the service is idle", () => {
@@ -33,8 +46,8 @@ test("SwiftBar menu reports missing or stale status without claiming the service
     "/plugins/autotranscribe.5s.sh"
   );
 
-  assert.match(output, /^AT stale \| color=orange/m);
-  assert.doesNotMatch(output, /Open transcript folder/);
+  assert.match(output, /^\| sfimage=pencil\.and\.ellipsis\.rectangle sfcolor=orange/m);
+  assert.doesNotMatch(output, /Open latest transcript/);
   assert.match(renderSwiftBarUnavailable("bad|output\n"), /Status unavailable: bad output /);
 });
 
@@ -48,5 +61,5 @@ test("SwiftBar menu reports an explicitly stopped service as idle even if its fi
     "/plugins/autotranscribe.5s.sh"
   );
 
-  assert.match(output, /^AT idle \| color=gray/m);
+  assert.match(output, /^\| sfimage=pencil\.and\.ellipsis\.rectangle sfcolor=gray/m);
 });

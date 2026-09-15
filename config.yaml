@@ -2,7 +2,7 @@ watch:
   enabled: true
   directories:
     - "/Users/joostokkinga/Documents/AutoTranscribe2/recordings"
-  include_extensions: [".m4a", ".mp3", ".wav"]
+  include_extensions: [".m4a", ".mp3", ".wav", ".mp4"]
   exclude_patterns: []
   polling_interval_seconds: 10
   output_directory: "/Users/joostokkinga/Documents/AutoTranscribe2/transcripts"
